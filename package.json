@@ -1,0 +1,27 @@
+{
+  "name": "academia-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Assistente de WhatsApp da academia (Cloud API da Meta + Claude API)",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "chat": "tsx src/cli.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "@hono/node-server": "^1.13.0",
+    "hono": "^4.13.0",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

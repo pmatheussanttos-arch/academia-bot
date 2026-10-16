@@ -1,0 +1,264 @@
+import Anthropic from '@anthropic-ai/sdk'
+import type { ServicoAgenda } from './agendamento.js'
+import type { Config } from './config.js'
+import { carregarInstrucoes, limparNome, montarSistema } from './prompt.js'
+import { linkRecepcao } from './recepcao.js'
+import type { Notificador } from './notify.js'
+import type { Store } from './store.js'
+
+/** Só o que usamos do SDK, para os testes poderem trocar por um falso. */
+export interface ClienteClaude {
+  messages: {
+    create(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message>
+  }
+}
+
+export interface AgenteDeps {
+  cfg: Config
+  store: Store
+  claude: ClienteClaude
+  notificar: Notificador
+  agenda: ServicoAgenda
+  agora?: () => Date
+}
+
+export const MSG_HANDOFF_PADRAO = 'Já avisei a equipe! Alguém vai te responder por aqui em breve. 😊'
+export const MSG_ERRO_TECNICO = 'Tive um problema técnico aqui, mas já avisei a equipe para falar com você. 😊'
+
+/** Link que abre o WhatsApp da recepção com a mensagem já escrita (só existe se NUMERO_RECEPCAO estiver definido). */
+export function linkHandoff(cfg: Config, motivo: string): string | undefined {
+  return linkRecepcao(cfg.numeroRecepcao, `Oi! Vim pelo assistente virtual e preciso falar com uma pessoa. ${motivo}`)
+}
+
+/** Mensagem fixa para o cliente quando a conversa precisa de uma pessoa. */
+export function msgHandoff(cfg: Config, motivo: string): string {
+  const link = linkHandoff(cfg, motivo)
+  return link ? `Para falar com a nossa equipe agora, toque no link e envie a mensagem que já está pronta 👇\n${link}` : MSG_HANDOFF_PADRAO
+}
+
+export function msgErroTecnico(cfg: Config): string {
+  const link = linkRecepcao(cfg.numeroRecepcao, 'Oi! Tive um problema com o assistente virtual e preciso de ajuda.')
+  return link
+    ? `Tive um problema técnico aqui 😕 Para falar com a nossa equipe agora, toque no link e envie a mensagem que já está pronta 👇\n${link}`
+    : MSG_ERRO_TECNICO
+}
+
+const MAX_VOLTAS = 6
+const MAX_TOKENS = 4096 // o pensamento do modelo também conta nesse limite
+
+export function criarClienteClaude(): ClienteClaude {
+  const client = new Anthropic({ timeout: 60_000 })
+  return { messages: { create: (params) => client.messages.create(params) } }
+}
+
+const TIPO_VISITA = {
+  type: 'string',
+  enum: ['aula_experimental', 'avaliacao_fisica'],
+  description: 'aula_experimental (gratuita) ou avaliacao_fisica (paga, exceto nos planos VIP).',
+} as const
+
+export const FERRAMENTAS: Anthropic.Tool[] = [
+  {
+    name: 'chamar_humano',
+    description:
+      'Passa a conversa para uma pessoa da equipe da academia e avisa a equipe. Use quando o cliente pedir uma pessoa, em reclamações, cancelamento ou trancamento (depois da regra de retenção das instruções), descontos, saúde ou lesão, pagamento por cartão, mudança ou cancelamento de uma visita já marcada, e quando o cliente aceitar que a equipe responda uma dúvida que você não sabe. Depois de usar, siga o que a ferramenta mandar dizer ao cliente. Para PEDIR uma visita nova, use solicitar_avaliacao, não esta.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        motivo: { type: 'string', description: 'Resumo curto para a equipe: o que o cliente quer e o que já foi dito.' },
+      },
+      required: ['motivo'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'consultar_horarios',
+    description:
+      'Lista os horários de aula experimental ou de avaliação em uma data. Para avaliação, consulta o Google Agenda e mostra só os horários livres. Use SEMPRE antes de oferecer ou aceitar um horário: nunca invente horários. Informe a data como AAAA-MM-DD; para "segunda", "amanhã" etc., calcule a partir da data de hoje informada no início da conversa. Não registra nada.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        tipo: TIPO_VISITA,
+        data: { type: 'string', description: 'Data no formato AAAA-MM-DD, por exemplo 2026-10-19.' },
+      },
+      required: ['tipo', 'data'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'solicitar_avaliacao',
+    description:
+      'Marca a avaliação física (agenda de verdade, quando a ferramenta devolver a mensagem de "agendada") ou registra o pedido de aula experimental (a equipe confirma). Use só depois de ter tipo, nome, data e horário escolhidos pelo cliente, com o horário vindo de consultar_horarios. A ferramenta devolve a mensagem final que você deve enviar ao cliente. Não silencia o bot: a conversa continua normal.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        tipo: TIPO_VISITA,
+        nome: { type: 'string', description: 'Nome que o cliente informou para a agenda. Se ele não disse, use o nome do perfil.' },
+        data: { type: 'string', description: 'Data no formato AAAA-MM-DD.' },
+        horario: { type: 'string', description: 'Horário de início no formato HH:MM, igual a um dos horários devolvidos por consultar_horarios.' },
+        observacao: { type: 'string', description: 'Algo que a equipe precise saber (plano de interesse, por exemplo). Use "" se não houver.' },
+        ja_e_aluno: { type: 'boolean', description: 'true se o cliente disse que já é aluno da academia.' },
+        plano_vip: { type: 'boolean', description: 'true se o cliente disse que é de um plano VIP (ou vai contratar um).' },
+      },
+      required: ['tipo', 'nome', 'data', 'horario', 'observacao', 'ja_e_aluno', 'plano_vip'],
+      additionalProperties: false,
+    },
+  },
+]
+
+export async function encaminharParaHumano(
+  deps: Pick<AgenteDeps, 'cfg' | 'store' | 'notificar'>,
+  chat: string,
+  nome: string | undefined,
+  motivo: string,
+): Promise<void> {
+  const { cfg, store, notificar } = deps
+  if (cfg.handoffHoras > 0) store.definirHandoff(chat, cfg.handoffHoras, motivo)
+  await notificar(
+    [
+      '🔔 Cliente precisa de atendimento humano',
+      `Nome: ${nome?.trim() || '(sem nome no perfil)'}`,
+      `WhatsApp: +${chat}`,
+      `Motivo: ${motivo}`,
+      cfg.handoffHoras > 0
+        ? `O bot fica em silêncio com este cliente por ${cfg.handoffHoras}h.`
+        : cfg.numeroRecepcao
+          ? 'O cliente recebeu o link para falar com a recepção; o bot continua atendendo.'
+          : 'O bot continua atendendo.',
+    ].join('\n'),
+  )
+}
+
+function historicoParaMensagens(historico: ReturnType<Store['historico']>): Anthropic.MessageParam[] {
+  const msgs: Anthropic.MessageParam[] = historico.map((m) => ({ role: m.papel, content: m.conteudo }))
+  while (msgs.length > 0 && msgs[0]?.role !== 'user') msgs.shift() // a conversa tem que começar pelo cliente
+  return msgs
+}
+
+const campo = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+const tipoDe = (v: unknown) => (v === 'aula_experimental' || v === 'avaliacao_fisica' ? v : null)
+
+function resultado(bloco: Anthropic.ToolUseBlock, texto: string, erro = false): Anthropic.ToolResultBlockParam {
+  return { type: 'tool_result', tool_use_id: bloco.id, content: texto, ...(erro ? { is_error: true } : {}) }
+}
+
+async function executarFerramenta(
+  deps: AgenteDeps,
+  chat: string,
+  nome: string | undefined,
+  bloco: Anthropic.ToolUseBlock,
+): Promise<Anthropic.ToolResultBlockParam> {
+  const entrada = (bloco.input ?? {}) as Record<string, unknown>
+
+  if (bloco.name === 'chamar_humano') {
+    const motivo = campo(entrada.motivo, 500) || 'sem motivo informado'
+    await encaminharParaHumano(deps, chat, nome, motivo)
+    const link = linkHandoff(deps.cfg, motivo)
+    return resultado(
+      bloco,
+      link
+        ? `Equipe avisada. Diga ao cliente, em uma frase curta, que para falar com a recepção agora ele deve tocar no link abaixo (a mensagem já vai pronta). Envie o link exatamente como está, sem alterar. Não faça mais perguntas nem chamada para ação.\n${link}`
+        : 'Equipe avisada. Diga ao cliente, em uma frase simples, que alguém da equipe responde em breve. Não faça mais perguntas nem chamada para ação.',
+    )
+  }
+
+  if (bloco.name === 'consultar_horarios') {
+    const tipo = tipoDe(entrada.tipo)
+    if (!tipo) return resultado(bloco, 'Tipo inválido. Use aula_experimental ou avaliacao_fisica.', true)
+    return resultado(bloco, await deps.agenda.consultar(tipo, campo(entrada.data, 10)))
+  }
+
+  if (bloco.name === 'solicitar_avaliacao') {
+    const tipo = tipoDe(entrada.tipo)
+    if (!tipo) return resultado(bloco, 'Tipo inválido. Use aula_experimental ou avaliacao_fisica.', true)
+    const r = await deps.agenda.solicitar({
+      chat,
+      nomeContato: limparNome(nome),
+      nomeCliente: campo(entrada.nome, 60),
+      tipo,
+      dataISO: campo(entrada.data, 10),
+      hhmm: campo(entrada.horario, 5),
+      obs: campo(entrada.observacao, 300),
+      jaEAluno: entrada.ja_e_aluno === true,
+      planoVip: entrada.plano_vip === true,
+    })
+    if (!r.ok) return resultado(bloco, r.motivo, true)
+    const situacao = r.agendada
+      ? 'AGENDADO: a avaliação já está na agenda da academia.'
+      : 'REGISTRADO, mas ainda NÃO está agendado: a equipe vai confirmar o horário. Não diga que está agendado nem confirmado.'
+    return resultado(
+      bloco,
+      `${situacao} Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nada e sem acrescentar texto antes ou depois.\n---\n${r.mensagem}\n---`,
+    )
+  }
+
+  return resultado(bloco, `Ferramenta desconhecida: ${bloco.name}`, true)
+}
+
+function textoDe(resposta: Anthropic.Message): string {
+  return resposta.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n')
+    .trim()
+}
+
+/**
+ * Gera a resposta para a última mensagem do cliente (que já deve estar salva no histórico).
+ * Pode chamar a equipe no meio do caminho. Lança erro se a API do Claude falhar; quem chama decide o que fazer.
+ */
+export async function responder(deps: AgenteDeps, chat: string, nome: string | undefined): Promise<string> {
+  const { cfg, store, claude } = deps
+  const agora = (deps.agora ?? (() => new Date()))()
+  const system = montarSistema(carregarInstrucoes(cfg.instrucoesPath), agora, nome, deps.agenda.fuso)
+  const mensagens = historicoParaMensagens(store.historico(chat, cfg.historicoMax))
+
+  let ultimoTexto = ''
+  let encaminhou = false
+
+  for (let volta = 0; volta < MAX_VOLTAS; volta++) {
+    const resposta = await claude.messages.create({
+      model: cfg.model,
+      max_tokens: MAX_TOKENS,
+      system,
+      tools: FERRAMENTAS,
+      messages: mensagens,
+      output_config: { effort: cfg.effort },
+    })
+
+    if (resposta.stop_reason === 'refusal') {
+      await encaminharParaHumano(deps, chat, nome, 'O assistente não conseguiu responder esta mensagem (bloqueio de segurança).')
+      return msgHandoff(cfg, 'Preciso de ajuda.')
+    }
+
+    const texto = textoDe(resposta)
+    if (texto) ultimoTexto = texto
+
+    if (resposta.stop_reason === 'tool_use') {
+      // Devolvemos o conteúdo do modelo inteiro e sem alterações (inclui o raciocínio), como a API exige.
+      mensagens.push({ role: 'assistant', content: resposta.content })
+      const resultados: Anthropic.ToolResultBlockParam[] = []
+      for (const bloco of resposta.content) {
+        if (bloco.type !== 'tool_use') continue
+        if (bloco.name === 'chamar_humano') encaminhou = true
+        resultados.push(await executarFerramenta(deps, chat, nome, bloco))
+      }
+      mensagens.push({ role: 'user', content: resultados })
+      continue
+    }
+
+    if (resposta.stop_reason === 'max_tokens') {
+      throw new Error('resposta cortada por max_tokens')
+    }
+
+    if (ultimoTexto) return ultimoTexto
+    if (encaminhou) return msgHandoff(cfg, 'Preciso de ajuda.')
+    throw new Error('o modelo terminou sem texto')
+  }
+
+  if (encaminhou) return ultimoTexto || msgHandoff(cfg, 'Preciso de ajuda.')
+  throw new Error('o modelo não terminou depois de várias chamadas de ferramenta')
+}

@@ -1,0 +1,11 @@
+node_modules
+data
+.env
+.git
+*.zip
+test
+README.md
+HOSPEDAGEM.md
+render.yaml
+GOOGLE-AGENDA.md
+META-WHATSAPP.md

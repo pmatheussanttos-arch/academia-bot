@@ -1,0 +1,38 @@
+# Receita para a Render (render.com): "New > Blueprint" lê este arquivo e cria tudo de uma vez.
+# Os valores marcados com "sync: false" são segredos: a Render pergunta cada um na hora de criar.
+services:
+  - type: web
+    name: garagefit-bot
+    runtime: docker
+    plan: starter # o plano gratuito "dorme" e perderia mensagens; este fica sempre ligado
+    region: oregon # a Render não tem região no Brasil
+    healthCheckPath: /health
+    autoDeploy: true # editou o instrucoes.md no GitHub? a Render atualiza o bot sozinha
+    disk:
+      name: dados
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      # Modelo de IA. Para respostas mais cuidadosas (e mais caras), troque por claude-sonnet-5-5.
+      - key: CLAUDE_MODEL
+        value: claude-haiku-5-5
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      # WhatsApp da recepção, com DDD (ex.: 11999998888). O bot entrega um link para ele quando o cliente quer uma pessoa.
+      - key: NUMERO_RECEPCAO
+        sync: false
+      # Enquanto testa: só o seu número (com DDD). Depois de aprovar, apague o valor para liberar todos.
+      - key: NUMEROS_PERMITIDOS
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
