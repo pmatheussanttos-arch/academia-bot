@@ -3,12 +3,14 @@ import { serve } from '@hono/node-server'
 import { criarClienteClaude } from './agent.js'
 import { criarServicoAgenda } from './agendamento.js'
 import { criarApp } from './app.js'
+import { DriverBaileys } from './baileys.js'
+import { tratarMensagem } from './atendimento.js'
 import { carregarConfig, exigirWhatsapp } from './config.js'
 import { FilaPorChave } from './fila.js'
 import { criarNotificador, limitarAvisos } from './notify.js'
 import { carregarInstrucoes, instrucoesIncompletas } from './prompt.js'
 import { Store } from './store.js'
-import { criarClienteWhatsapp } from './whatsapp.js'
+import { criarClienteWhatsapp, type ClienteWhatsapp } from './whatsapp.js'
 
 function falhar(mensagem: string): never {
   console.error(`\n❌ ${mensagem}\n`)
@@ -28,13 +30,21 @@ try {
   falhar(err instanceof Error ? err.message : String(err))
 }
 
+const modoQr = cfg.modoWhatsapp === 'qr'
+
+// No modo Cloud exigimos as credenciais da Meta; no modo QR a conexão é por QR code.
 let whatsappCfg
-try {
-  whatsappCfg = exigirWhatsapp(cfg)
-} catch (err) {
-  falhar(err instanceof Error ? err.message : String(err))
+if (!modoQr) {
+  try {
+    whatsappCfg = exigirWhatsapp(cfg)
+  } catch (err) {
+    falhar(err instanceof Error ? err.message : String(err))
+  }
 }
 if (!process.env.ANTHROPIC_API_KEY) falhar('Falta a variável ANTHROPIC_API_KEY (chave da Claude API).')
+if (modoQr && !cfg.adminToken) {
+  falhar('No modo QR, defina ADMIN_TOKEN: ele protege a página onde você escaneia o QR code (quem a vê controla o WhatsApp).')
+}
 
 let instrucoes: string
 try {
@@ -47,13 +57,15 @@ if (instrucoesIncompletas(instrucoes) && !cfg.permitirInstrucoesIncompletas) {
     `O arquivo ${cfg.instrucoesPath} ainda tem trechos [PREENCHER]. Preencha-os (ou defina PERMITIR_INSTRUCOES_INCOMPLETAS=1 só para testes) antes de atender clientes de verdade.`,
   )
 }
-if (!cfg.numeroRecepcao && !cfg.permitirSemRecepcao) {
+// No modo QR o bot está no número da própria academia: a equipe responde pelo mesmo WhatsApp, então
+// o link para a recepção não se aplica e NUMERO_RECEPCAO é opcional.
+if (!modoQr && !cfg.numeroRecepcao && !cfg.permitirSemRecepcao) {
   falhar(
     'Falta a variável NUMERO_RECEPCAO (o WhatsApp da recepção, com DDD, ex.: 11999998888). Sem ela, o cliente que pedir para falar com uma pessoa ficaria sem saída. Para testes, use PERMITIR_SEM_RECEPCAO=1.',
   )
 }
 if (!cfg.telegram) {
-  console.log('ℹ️  Sem Telegram: avisos à equipe (cliente precisa de uma pessoa, pedido de aula experimental) aparecem só neste log.')
+  console.log('ℹ️  Sem Telegram: avisos à equipe aparecem só neste log.')
 }
 if (cfg.numerosPermitidos.length > 0) {
   console.log(`⚠️  Modo de teste: o bot só responde a ${cfg.numerosPermitidos.length} número(s) (NUMEROS_PERMITIDOS).`)
@@ -73,8 +85,14 @@ try {
 console.log(
   agenda.modo === 'google'
     ? '📅 Agenda: modo Google. Avaliações são agendadas direto no Google Agenda.'
-    : '📅 Agenda: modo manual. O cliente confirma o horário com a recepção pelo link que o bot envia.',
+    : '📅 Agenda: modo manual.',
 )
+
+const fila = new FilaPorChave()
+
+// O cliente de WhatsApp depende do modo. No QR, é o driver Baileys (que também é a fonte das mensagens).
+const driver = modoQr ? new DriverBaileys({ dataDir: cfg.dataDir }) : undefined
+const wa: ClienteWhatsapp = driver ?? criarClienteWhatsapp(whatsappCfg!)
 
 const deps = {
   cfg,
@@ -82,14 +100,34 @@ const deps = {
   claude: criarClienteClaude(),
   notificar,
   agenda,
-  wa: criarClienteWhatsapp(whatsappCfg),
+  wa,
   avisarErro: limitarAvisos(notificar),
-  fila: new FilaPorChave(),
+  fila,
   whatsappCfg,
+  whatsappEstado: driver ? () => driver.estado() : undefined,
   iniciadoEm: Date.now(),
 }
 
 const app = criarApp(deps)
+
+if (driver) {
+  const silencioHoras = cfg.handoffHoras > 0 ? cfg.handoffHoras : 6
+  await driver.iniciar({
+    dispatch: (msg) => {
+      if (!store.marcarProcessada(msg.wamid)) return // o WhatsApp reenviou algo já tratado
+      void fila.executar(msg.from, () => tratarMensagem(deps, msg))
+    },
+    humano: (numero, texto) => {
+      // A equipe respondeu pelo celular, no mesmo número: o bot sai da conversa por um tempo.
+      store.definirHandoff(numero, silencioHoras, 'A equipe respondeu pelo WhatsApp.')
+      if (texto) store.adicionarMensagem(numero, 'assistant', texto)
+    },
+  })
+  console.log(`📱 WhatsApp: modo QR code. Abra /conectar?token=SEU_ADMIN_TOKEN para parear o número.`)
+} else {
+  console.log('📱 WhatsApp: modo Cloud (API oficial da Meta).')
+}
+
 const servidor = serve({ fetch: app.fetch, port: cfg.port }, (info) => {
   console.log(`✅ Bot da academia no ar na porta ${info.port} (modelo ${cfg.model}, esforço ${cfg.effort}).`)
 })
@@ -98,6 +136,7 @@ process.on('unhandledRejection', (err) => console.error('[processo] promessa rej
 
 function encerrar(): void {
   console.log('Encerrando…')
+  void driver?.encerrar()
   servidor.close(() => {
     store.fechar()
     process.exit(0)

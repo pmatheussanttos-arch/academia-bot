@@ -1,11 +1,16 @@
 # Bot de WhatsApp da GarageFit
 
-Assistente que responde clientes no WhatsApp 24h, usando a **Cloud API oficial da Meta** (o canal) e a **Claude API** (a inteligência). Você controla o comportamento editando um arquivo de texto: `instrucoes.md`.
+Assistente que responde clientes no WhatsApp 24h, usando a **Claude API** (a inteligência). Você controla o comportamento editando um arquivo de texto: `instrucoes.md`.
 
-## O que a versão 1 faz
+Dois jeitos de conectar ao WhatsApp, escolhidos pela variável `WHATSAPP_MODO`:
+- **`qr`** (simples): conecta no número da própria academia lendo um QR code, como o WhatsApp Web. Não é oficial e tem risco de banimento do número. Passo a passo no **QR-WHATSAPP.md**.
+- **`cloud`** (oficial): API da Meta, mais estável e dentro das regras, porém mais trabalhosa de configurar. Passo a passo no **META-WHATSAPP.md**.
+
+## O que a versão faz
 
 - Responde dúvidas sobre planos, preços, horários, endereço, cancelamento e renovação, só com o que está no `instrucoes.md`.
-- Quando não sabe, ou quando o assunto é cancelamento, desconto, lesão, reclamação etc., **entrega ao cliente um link que abre o WhatsApp da recepção com a mensagem já escrita** (veja "Como o cliente fala com a equipe").
+- Quando não sabe, ou quando o assunto é cancelamento, desconto, lesão, reclamação etc., chama a equipe: no modo `cloud` entrega um link para o WhatsApp da recepção; no modo `qr` (mesmo número da academia) avisa que a equipe responde ali mesmo.
+- No modo `qr`, **percebe quando a equipe responde pelo celular e se cala** com aquele cliente.
 - Pede que o cliente escreva quando recebe áudio, e avisa a equipe quando recebe imagem ou documento (possível comprovante).
 - Guarda o histórico de cada cliente separado dos outros e apaga conversas antigas (`RETENCAO_DIAS`, padrão 90).
 
@@ -34,14 +39,11 @@ Gasto: o modelo padrão é o `claude-haiku-5-5`, o mais barato (por volta de US$
 
 ## 2. Ligar ao WhatsApp
 
-1. No painel de desenvolvedores da Meta (developers.facebook.com), crie um app do tipo Empresa e adicione o produto **WhatsApp**.
-2. Registre na Cloud API um **número novo, que não esteja em nenhum WhatsApp**: será o número do assistente. O número atual da academia continua no app, com a equipe. O passo a passo está no **META-WHATSAPP.md**.
-3. Gere um **token permanente** (usuário do sistema do Business Manager). O token de teste expira em 24h e derruba o bot.
-4. Anote: token de acesso, ID do número de telefone, chave secreta do app. Invente também uma frase longa para o `WHATSAPP_VERIFY_TOKEN`.
-5. Coloque o bot no ar (próxima seção) e, no painel da Meta, em WhatsApp > Configuração > Webhook, cadastre `https://SEU-ENDERECO/webhook` com o mesmo verify token e assine o campo **messages**.
-6. Enquanto testa, preencha `NUMEROS_PERMITIDOS` com o seu número: o bot ignora todo o resto.
+Escolha o modo:
+- **Modo QR (recomendado para começar):** siga o **QR-WHATSAPP.md**. Depois de o bot estar no ar, você abre uma página, escaneia um QR code com o celular da academia e pronto.
+- **Modo oficial da Meta:** siga o **META-WHATSAPP.md** (usa um número novo, token e webhook).
 
-Mensagens que a **academia inicia** (fora das 24h depois da última mensagem do cliente) só podem ser **templates aprovados pela Meta**. Isso vai importar quando fizermos lembretes de vencimento.
+Enquanto testa, preencha `NUMEROS_PERMITIDOS` com o seu número: o bot ignora todo o resto.
 
 Custos da Meta: cobrança por mensagem, que mudou em 2025 e muda de novo em outubro de 2026. Confira a tabela oficial de preços da Meta antes de estimar.
 
@@ -97,10 +99,11 @@ Avisos técnicos (por exemplo, token da Meta expirado) aparecem no log da Render
 | `agenda.json` | **Você edita**: dias e horários das visitas, antecedência, feriados |
 | `mensagens.md` | **Você edita**: textos de "avaliação agendada" e "pedido recebido" |
 | `src/agendamento.ts`, `src/agenda.ts`, `src/google.ts` | Regras de horário e integração com o Google Agenda |
+| `src/baileys.ts`, `src/baileys-parse.ts` | Conexão por QR code (modo qr) |
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 98 testes sem gastar nada |
+| `test/` | `npm test` roda 117 testes sem gastar nada |
 
 ## Próximas fases
 

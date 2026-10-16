@@ -1,0 +1,203 @@
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import makeWASocket, {
+  Browsers,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  useMultiFileAuthState,
+  type WASocket,
+} from '@whiskeysockets/baileys'
+import { classificar, type MensagemBaileys } from './baileys-parse.js'
+import type { ClienteWhatsapp, MensagemRecebida } from './whatsapp.js'
+
+export type StatusConexao = 'iniciando' | 'aguardando_qr' | 'conectado' | 'desconectado' | 'desligado'
+
+export interface EstadoWhatsapp {
+  status: StatusConexao
+  /** Texto bruto do QR code atual (para desenhar a imagem). Só existe enquanto aguarda leitura. */
+  qr?: string
+  /** Número conectado, quando já pareado. */
+  numero?: string
+  /** Última mudança de status. */
+  desde: number
+  /** Mensagem curta de diagnóstico para a tela. */
+  detalhe?: string
+}
+
+export interface HandlersBaileys {
+  /** Chama o atendimento para uma mensagem de cliente (o servidor serializa por número). */
+  dispatch: (msg: MensagemRecebida) => void
+  /** A equipe respondeu pelo próprio celular: o bot deve silenciar aquele cliente. */
+  humano: (numero: string, texto: string | undefined) => void
+}
+
+/** Logger mínimo no formato que a Baileys espera; silencioso, exceto avisos e erros. */
+interface LoggerBaileys {
+  level: string
+  child(obj: Record<string, unknown>): LoggerBaileys
+  trace(obj: unknown, msg?: string): void
+  debug(obj: unknown, msg?: string): void
+  info(obj: unknown, msg?: string): void
+  warn(obj: unknown, msg?: string): void
+  error(obj: unknown, msg?: string): void
+}
+
+const logSilencioso: LoggerBaileys = {
+  level: 'silent',
+  child: () => logSilencioso,
+  trace: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: (o: unknown, m?: string) => console.error('[baileys]', m ?? o),
+  error: (o: unknown, m?: string) => console.error('[baileys]', m ?? o),
+}
+
+const LIMITE_IDS = 400
+
+/**
+ * Conecta ao WhatsApp pelo método de QR code (biblioteca Baileys), no mesmo número da academia.
+ * ATENÇÃO: esse método não é oficial e pode levar ao banimento do número (ver QR-WHATSAPP.md).
+ */
+export class DriverBaileys implements ClienteWhatsapp {
+  private sock?: WASocket
+  private estadoAtual: EstadoWhatsapp = { status: 'iniciando', desde: Date.now() }
+  private handlers?: HandlersBaileys
+  private readonly authDir: string
+  /** ids de mensagens enviadas pelo bot, para não reagir ao próprio eco. */
+  private readonly idsDoBot = new Set<string>()
+  /** número do cliente -> JID exato de onde a última mensagem veio (para responder no lugar certo). */
+  private readonly jidPorNumero = new Map<string, string>()
+  /** wamid -> chave completa, para marcar como lida. */
+  private readonly chavePorWamid = new Map<string, MensagemBaileys['key']>()
+  private encerrando = false
+  private tentativaReconexao = 0
+
+  constructor(
+    private readonly opts: { dataDir: string; onEstado?: (e: EstadoWhatsapp) => void },
+  ) {
+    this.authDir = join(opts.dataDir, 'whatsapp-sessao')
+  }
+
+  estado(): EstadoWhatsapp {
+    return this.estadoAtual
+  }
+
+  private mudarEstado(parcial: Partial<EstadoWhatsapp>): void {
+    this.estadoAtual = { ...this.estadoAtual, ...parcial, desde: Date.now() }
+    this.opts.onEstado?.(this.estadoAtual)
+  }
+
+  private lembrarId(set: Set<string>, id: string): void {
+    set.add(id)
+    if (set.size > LIMITE_IDS) set.delete(set.values().next().value as string)
+  }
+
+  async iniciar(handlers: HandlersBaileys): Promise<void> {
+    this.handlers = handlers
+    await this.conectar()
+  }
+
+  private async conectar(): Promise<void> {
+    const { state, saveCreds } = await useMultiFileAuthState(this.authDir)
+
+    let version: [number, number, number] | undefined
+    try {
+      version = (await fetchLatestBaileysVersion()).version
+    } catch {
+      // sem rede para descobrir a versão: a lib usa a padrão dela
+    }
+
+    const sock = makeWASocket({
+      auth: state,
+      version,
+      logger: logSilencioso,
+      browser: Browsers.ubuntu('Chrome'),
+      markOnlineOnConnect: false, // não "rouba" as notificações do celular da equipe
+      syncFullHistory: false,
+      printQRInTerminal: false,
+    })
+    this.sock = sock
+
+    sock.ev.on('creds.update', saveCreds)
+
+    sock.ev.on('connection.update', (u) => {
+      if (u.qr) this.mudarEstado({ status: 'aguardando_qr', qr: u.qr, detalhe: 'Escaneie o QR code no WhatsApp.' })
+      if (u.connection === 'open') {
+        this.tentativaReconexao = 0
+        const numero = sock.user?.id ? sock.user.id.split(':')[0]?.replace(/\D/g, '') : undefined
+        this.mudarEstado({ status: 'conectado', qr: undefined, numero, detalhe: undefined })
+        console.log(`[baileys] conectado${numero ? ` como +${numero}` : ''}`)
+      }
+      if (u.connection === 'close') this.aoFechar(u.lastDisconnect?.error)
+    })
+
+    sock.ev.on('messages.upsert', (ev) => {
+      if (ev.type !== 'notify') return // 'append' = sincronização de histórico, não mensagens novas
+      for (const m of ev.messages) this.tratarInbound(m as MensagemBaileys).catch((e) => console.error('[baileys] inbound:', e))
+    })
+  }
+
+  private async aoFechar(erro: unknown): Promise<void> {
+    if (this.encerrando) return
+    const codigo = (erro as { output?: { statusCode?: number } })?.output?.statusCode
+
+    if (codigo === DisconnectReason.loggedOut) {
+      // A sessão foi desconectada no celular (ou o número foi deslogado): apaga e pede novo QR.
+      console.error('[baileys] sessão encerrada no WhatsApp; será preciso escanear o QR de novo')
+      await rm(this.authDir, { recursive: true, force: true }).catch(() => {})
+      this.mudarEstado({ status: 'aguardando_qr', numero: undefined, detalhe: 'Desconectado no WhatsApp. Escaneie o QR de novo.' })
+      return this.conectar()
+    }
+
+    this.tentativaReconexao++
+    const espera = Math.min(30_000, 2 ** this.tentativaReconexao * 1000)
+    this.mudarEstado({ status: 'desconectado', detalhe: `Reconectando em ${Math.round(espera / 1000)}s…` })
+    console.error(`[baileys] conexão caiu (código ${codigo ?? '?'}); reconectando em ${espera}ms`)
+    setTimeout(() => {
+      if (!this.encerrando) this.conectar().catch((e) => console.error('[baileys] falha ao reconectar:', e))
+    }, espera).unref()
+  }
+
+  private async tratarInbound(m: MensagemBaileys): Promise<void> {
+    const c = classificar(m, this.idsDoBot)
+    if (c.acao === 'ignorar' || c.acao === 'eco') return
+
+    if (c.acao === 'humano') {
+      // A equipe respondeu pelo celular: o bot sai da conversa.
+      this.handlers?.humano(c.numero, undefined)
+      return
+    }
+
+    // Mensagem de cliente.
+    this.jidPorNumero.set(c.msg.from, c.jid)
+    if (c.msg.wamid) {
+      this.chavePorWamid.set(c.msg.wamid, m.key)
+      if (this.chavePorWamid.size > LIMITE_IDS) this.chavePorWamid.delete(this.chavePorWamid.keys().next().value as string)
+    }
+    this.handlers?.dispatch(c.msg)
+  }
+
+  // --- ClienteWhatsapp ---
+
+  async enviarTexto(numero: string, texto: string): Promise<void> {
+    if (!this.sock) throw new Error('WhatsApp ainda não conectado')
+    const jid = this.jidPorNumero.get(numero) ?? `${numero.replace(/\D/g, '')}@s.whatsapp.net`
+    const enviado = await this.sock.sendMessage(jid, { text: texto })
+    if (enviado?.key?.id) this.lembrarId(this.idsDoBot, enviado.key.id)
+  }
+
+  async marcarLida(wamid: string): Promise<void> {
+    const chave = this.chavePorWamid.get(wamid)
+    if (this.sock && chave) await this.sock.readMessages([chave])
+  }
+
+  async encerrar(): Promise<void> {
+    this.encerrando = true
+    try {
+      this.sock?.end(undefined)
+    } catch {
+      // nada a fazer no desligamento
+    }
+    this.mudarEstado({ status: 'desligado' })
+  }
+}

@@ -4,6 +4,8 @@ Ao final você terá o bot ligado 24h num servidor, conectado ao WhatsApp da aca
 
 > **Aviso:** escrevi este guia sem acesso às telas da Render e da Meta. Os nomes dos menus e botões podem ter mudado um pouco. Se algo não bater, me mande um print que eu ajusto o guia.
 
+> **Qual caminho?** Se você vai usar o **modo QR** (conectar pelo número da academia lendo um QR code), faça as etapas 1, 2 e 4 abaixo e **pule as etapas 3 e 5** (que são da API da Meta). A conexão do WhatsApp, nesse caso, é feita pelo **QR-WHATSAPP.md** depois que o bot estiver no ar. O GitHub já está pronto — pode começar na etapa 4.
+
 ## O que você vai gastar
 
 | Item | Valor (confirme nos sites; os preços mudam) |

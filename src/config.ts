@@ -11,7 +11,11 @@ export interface ConfigWhatsapp {
   apiVersion: string
 }
 
+export type ModoWhatsapp = 'qr' | 'cloud'
+
 export interface Config {
+  /** 'qr': conecta no número da academia por QR code (não oficial). 'cloud': API oficial da Meta. */
+  modoWhatsapp: ModoWhatsapp
   model: string
   effort: Esforco
   port: number
@@ -75,11 +79,13 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const horasBrutas = env.HANDOFF_HORAS?.trim()
   const handoffHoras =
     horasBrutas && Number.isFinite(Number(horasBrutas)) && Number(horasBrutas) >= 0 ? Number(horasBrutas) : numeroRecepcao ? 0 : 6
+  const modoWhatsapp: ModoWhatsapp = (env.WHATSAPP_MODO?.trim() || 'cloud') === 'qr' ? 'qr' : 'cloud'
   const effort = (env.CLAUDE_EFFORT ?? 'low') as Esforco
   const telegramToken = env.TELEGRAM_BOT_TOKEN?.trim()
   const telegramChat = env.TELEGRAM_CHAT_ID?.trim()
 
   return {
+    modoWhatsapp,
     model: env.CLAUDE_MODEL?.trim() || 'claude-haiku-5-5',
     effort: ESFORCOS.includes(effort) ? effort : 'low',
     port: numero(env.PORT, 3000),

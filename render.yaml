@@ -15,11 +15,15 @@ services:
     envVars:
       - key: DATA_DIR
         value: /data
+      # Modo de conexão: qr (simples, número da academia por QR code) ou cloud (API oficial da Meta).
+      - key: WHATSAPP_MODO
+        value: qr
       # Modelo de IA. Para respostas mais cuidadosas (e mais caras), troque por claude-sonnet-5-5.
       - key: CLAUDE_MODEL
         value: claude-haiku-5-5
       - key: ANTHROPIC_API_KEY
         sync: false
+      # As 5 variáveis abaixo são usadas SÓ no modo cloud (API da Meta). No modo qr, deixe em branco.
       - key: WHATSAPP_ACCESS_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
@@ -28,7 +32,6 @@ services:
         sync: false
       - key: WHATSAPP_VERIFY_TOKEN
         sync: false
-      # WhatsApp da recepção, com DDD (ex.: 11999998888). O bot entrega um link para ele quando o cliente quer uma pessoa.
       - key: NUMERO_RECEPCAO
         sync: false
       # Enquanto testa: só o seu número (com DDD). Depois de aprovar, apague o valor para liberar todos.
