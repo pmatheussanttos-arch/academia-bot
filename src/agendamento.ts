@@ -3,7 +3,7 @@ import type { Config } from './config.js'
 import { ClienteGoogleAgenda, type EventoAgenda, type GoogleAgendaApi } from './google.js'
 import { carregarMensagens, renderizar, type Mensagens } from './mensagens.js'
 import type { Notificador } from './notify.js'
-import { linkRecepcao } from './recepcao.js'
+import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Store } from './store.js'
 
 export type TipoVisita = 'aula_experimental' | 'avaliacao_fisica'
@@ -147,7 +147,7 @@ export class ServicoAgenda {
       [
         `🗓️ ${situacao}`,
         `Nome: ${limparNome(p.nomeCliente) || limparNome(p.nomeContato) || '(sem nome)'}`,
-        `WhatsApp: +${p.chat}`,
+        `WhatsApp: ${formatarWhatsapp(p.chat)}`,
         `Tipo: ${NOME_TIPO[p.tipo]}${p.planoVip ? ' (plano VIP)' : ''}${p.jaEAluno ? ' (já é aluno)' : ''}`,
         `Quando: ${r.dia} às ${r.hora}`,
         ...(p.obs ? [`Obs.: ${p.obs}`] : []),
@@ -210,7 +210,7 @@ export class ServicoAgenda {
       const eventoId = await google!.criarEvento(agendaId!, {
         titulo: `Avaliação — ${nome}`,
         descricao: [
-          `WhatsApp: +${p.chat}`,
+          `WhatsApp: ${formatarWhatsapp(p.chat)}`,
           ...(p.planoVip ? ['Plano VIP (avaliação gratuita)'] : []),
           ...(p.jaEAluno ? ['Já é aluno'] : []),
           ...(p.obs ? [`Obs.: ${p.obs}`] : []),

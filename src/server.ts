@@ -5,7 +5,7 @@ import { criarServicoAgenda } from './agendamento.js'
 import { criarApp } from './app.js'
 import { DriverBaileys } from './baileys.js'
 import { tratarMensagem } from './atendimento.js'
-import { carregarConfig, exigirWhatsapp } from './config.js'
+import { carregarConfig, ehNumeroDaEquipe, exigirWhatsapp } from './config.js'
 import { FilaPorChave } from './fila.js'
 import { criarNotificador, limitarAvisos } from './notify.js'
 import { carregarInstrucoes, instrucoesIncompletas } from './prompt.js'
@@ -64,8 +64,18 @@ if (!modoQr && !cfg.numeroRecepcao && !cfg.permitirSemRecepcao) {
     'Falta a variável NUMERO_RECEPCAO (o WhatsApp da recepção, com DDD, ex.: 11999998888). Sem ela, o cliente que pedir para falar com uma pessoa ficaria sem saída. Para testes, use PERMITIR_SEM_RECEPCAO=1.',
   )
 }
-if (!cfg.telegram) {
-  console.log('ℹ️  Sem Telegram: avisos à equipe aparecem só neste log.')
+const mascarar = (n: string) => `+${n.slice(0, 4)}…${n.slice(-4)}`
+const canaisDeAviso = [
+  ...(modoQr && cfg.numerosAvisos.length > 0 ? [`WhatsApp (${cfg.numerosAvisos.map(mascarar).join(', ')})`] : []),
+  ...(cfg.telegram ? ['Telegram'] : []),
+]
+console.log(
+  canaisDeAviso.length > 0
+    ? `🔔 Avisos à equipe: ${canaisDeAviso.join(' e ')}.`
+    : 'ℹ️  Avisos à equipe só aparecem neste log. Defina NUMEROS_AVISOS (WhatsApp da recepção) para a equipe receber de verdade.',
+)
+if (!modoQr && process.env.NUMEROS_AVISOS?.trim()) {
+  console.log('ℹ️  NUMEROS_AVISOS só funciona no modo QR; no modo Cloud use o Telegram.')
 }
 if (cfg.numerosPermitidos.length > 0) {
   console.log(`⚠️  Modo de teste: o bot só responde a ${cfg.numerosPermitidos.length} número(s) (NUMEROS_PERMITIDOS).`)
@@ -75,7 +85,9 @@ const store = new Store(join(cfg.dataDir, 'bot.db'))
 store.limpar(cfg.retencaoDias)
 setInterval(() => store.limpar(cfg.retencaoDias), 6 * 3_600_000).unref()
 
-const notificar = criarNotificador(cfg)
+// No QR, o driver é quem conecta ao WhatsApp, e também envia os avisos para a equipe (a partir do número da academia).
+const driver = modoQr ? new DriverBaileys({ dataDir: cfg.dataDir }) : undefined
+const notificar = criarNotificador(cfg, { whatsapp: driver ? (numero, texto) => driver.enviarAviso(numero, texto) : undefined })
 let agenda
 try {
   agenda = criarServicoAgenda(cfg, store, notificar)
@@ -91,7 +103,6 @@ console.log(
 const fila = new FilaPorChave()
 
 // O cliente de WhatsApp depende do modo. No QR, é o driver Baileys (que também é a fonte das mensagens).
-const driver = modoQr ? new DriverBaileys({ dataDir: cfg.dataDir }) : undefined
 const wa: ClienteWhatsapp = driver ?? criarClienteWhatsapp(whatsappCfg!)
 
 const deps = {
@@ -118,6 +129,7 @@ if (driver) {
       void fila.executar(msg.from, () => tratarMensagem(deps, msg))
     },
     humano: (numero, texto) => {
+      if (ehNumeroDaEquipe(cfg, numero)) return // conversa com quem recebe os avisos: não é um cliente
       // A equipe respondeu pelo celular, no mesmo número: o bot sai da conversa por um tempo.
       store.definirHandoff(numero, silencioHoras, 'A equipe respondeu pelo WhatsApp.')
       if (texto) store.adicionarMensagem(numero, 'assistant', texto)

@@ -7,7 +7,8 @@ import makeWASocket, {
   useMultiFileAuthState,
   type WASocket,
 } from '@whiskeysockets/baileys'
-import { classificar, type MensagemBaileys } from './baileys-parse.js'
+import { classificar, ehLid, numeroDeJid, telefoneDaChave, type MensagemBaileys } from './baileys-parse.js'
+import { normalizarNumero } from './config.js'
 import type { ClienteWhatsapp, MensagemRecebida } from './whatsapp.js'
 
 export type StatusConexao = 'iniciando' | 'aguardando_qr' | 'conectado' | 'desconectado' | 'desligado'
@@ -67,6 +68,8 @@ export class DriverBaileys implements ClienteWhatsapp {
   private readonly idsDoBot = new Set<string>()
   /** número do cliente -> JID exato de onde a última mensagem veio (para responder no lugar certo). */
   private readonly jidPorNumero = new Map<string, string>()
+  /** número da equipe -> JID confirmado pelo WhatsApp (resolve detalhes como o 9 extra dos celulares). */
+  private readonly jidDaEquipe = new Map<string, string>()
   /** wamid -> chave completa, para marcar como lida. */
   private readonly chavePorWamid = new Map<string, MensagemBaileys['key']>()
   private encerrando = false
@@ -158,8 +161,25 @@ export class DriverBaileys implements ClienteWhatsapp {
     }, espera).unref()
   }
 
+  /**
+   * O WhatsApp pode identificar o contato por um código interno (@lid) em vez do telefone. Descobrimos o telefone pelo
+   * que veio na própria mensagem ou pela tabela de conversão que a biblioteca mantém; sem isso, o filtro de teste e os
+   * avisos à equipe ficariam com um número que não existe.
+   */
+  private async descobrirTelefone(key: MensagemBaileys['key']): Promise<string | undefined> {
+    const direto = telefoneDaChave(key)
+    if (direto || !ehLid(key.remoteJid) || !this.sock) return direto
+    try {
+      const pn = await this.sock.signalRepository.lidMapping.getPNForLID(key.remoteJid!)
+      return pn ? numeroDeJid(pn) || undefined : undefined
+    } catch {
+      return undefined
+    }
+  }
+
   private async tratarInbound(m: MensagemBaileys): Promise<void> {
-    const c = classificar(m, this.idsDoBot)
+    const telefone = ehLid(m.key.remoteJid) ? await this.descobrirTelefone(m.key) : undefined
+    const c = classificar(m, this.idsDoBot, telefone)
     if (c.acao === 'ignorar' || c.acao === 'eco') return
 
     if (c.acao === 'humano') {
@@ -182,6 +202,29 @@ export class DriverBaileys implements ClienteWhatsapp {
   async enviarTexto(numero: string, texto: string): Promise<void> {
     if (!this.sock) throw new Error('WhatsApp ainda não conectado')
     const jid = this.jidPorNumero.get(numero) ?? `${numero.replace(/\D/g, '')}@s.whatsapp.net`
+    const enviado = await this.sock.sendMessage(jid, { text: texto })
+    if (enviado?.key?.id) this.lembrarId(this.idsDoBot, enviado.key.id)
+  }
+
+  /**
+   * Manda um aviso para o WhatsApp de alguém da equipe, a partir do número da academia. Lança erro se não conseguir
+   * (quem chama decide se tenta de novo).
+   */
+  async enviarAviso(numero: string, texto: string): Promise<void> {
+    if (!this.sock || this.estadoAtual.status !== 'conectado') throw new Error('WhatsApp da academia desconectado')
+    const proprio = this.estadoAtual.numero
+    if (proprio && normalizarNumero(proprio) === normalizarNumero(numero)) {
+      throw new Error(
+        `o número de avisos (+${numero}) é o MESMO número conectado ao bot: o aviso cairia numa conversa consigo mesmo e ninguém seria notificado. Use o celular de outra pessoa da equipe.`,
+      )
+    }
+    let jid = this.jidDaEquipe.get(numero)
+    if (!jid) {
+      const achado = (await this.sock.onWhatsApp(numero))?.[0]
+      if (!achado?.exists) throw new Error(`+${numero} não tem WhatsApp (ou não foi possível confirmar)`)
+      jid = achado.jid
+      this.jidDaEquipe.set(numero, jid)
+    }
     const enviado = await this.sock.sendMessage(jid, { text: texto })
     if (enviado?.key?.id) this.lembrarId(this.idsDoBot, enviado.key.id)
   }

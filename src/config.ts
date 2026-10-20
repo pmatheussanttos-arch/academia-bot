@@ -41,6 +41,11 @@ export interface Config {
   retencaoDias: number
   /** Se preenchida, o bot só responde a estes números (modo de teste). Vazia = todos. */
   numerosPermitidos: string[]
+  /**
+   * WhatsApps da equipe que recebem os avisos do bot (pedido de avaliação, cliente que quer uma pessoa).
+   * Só no modo QR: o bot manda a mensagem do próprio número da academia. Devem ser OUTROS números.
+   */
+  numerosAvisos: string[]
   adminToken?: string
   telegram?: { token: string; chatId: string }
   /** Só é exigido pelo servidor; o modo de teste no terminal (npm run chat) dispensa. */
@@ -80,6 +85,13 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const handoffHoras =
     horasBrutas && Number.isFinite(Number(horasBrutas)) && Number(horasBrutas) >= 0 ? Number(horasBrutas) : numeroRecepcao ? 0 : 6
   const modoWhatsapp: ModoWhatsapp = (env.WHATSAPP_MODO?.trim() || 'cloud') === 'qr' ? 'qr' : 'cloud'
+  // Avisos por WhatsApp só existem no modo QR (a API oficial só envia texto livre dentro de 24h da última mensagem do cliente).
+  // Sem NUMEROS_AVISOS, usa o NUMERO_RECEPCAO, se houver.
+  const avisosBrutos = lista(env.NUMEROS_AVISOS)
+  const numerosAvisos =
+    modoWhatsapp !== 'qr'
+      ? []
+      : [...new Set(avisosBrutos.length > 0 ? avisosBrutos.map((n) => normalizarNumeroRecepcao(n, 'NUMEROS_AVISOS')) : numeroRecepcao ? [numeroRecepcao] : [])]
   const effort = (env.CLAUDE_EFFORT ?? 'low') as Esforco
   const telegramToken = env.TELEGRAM_BOT_TOKEN?.trim()
   const telegramChat = env.TELEGRAM_CHAT_ID?.trim()
@@ -101,6 +113,7 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
     historicoMax: numero(env.HISTORICO_MAX, 30),
     retencaoDias: numero(env.RETENCAO_DIAS, 90),
     numerosPermitidos: lista(env.NUMEROS_PERMITIDOS),
+    numerosAvisos,
     adminToken: env.ADMIN_TOKEN?.trim() || undefined,
     telegram: telegramToken && telegramChat ? { token: telegramToken, chatId: telegramChat } : undefined,
     permitirInstrucoesIncompletas: env.PERMITIR_INSTRUCOES_INCOMPLETAS === '1',
@@ -142,8 +155,33 @@ export function normalizarNumero(bruto: string): string {
   return n
 }
 
-export function numeroPermitido(numero: string, permitidos: string[]): boolean {
-  if (permitidos.length === 0) return true
+/** Está na lista? Diferente de `numeroPermitido`, lista vazia = ninguém. */
+export function numeroNaLista(numero: string, lista: string[]): boolean {
+  if (lista.length === 0) return false
   const alvo = normalizarNumero(numero)
-  return permitidos.some((p) => normalizarNumero(p) === alvo)
+  return lista.some((p) => normalizarNumero(p) === alvo)
+}
+
+export function numeroPermitido(numero: string, permitidos: string[]): boolean {
+  return permitidos.length === 0 || numeroNaLista(numero, permitidos)
+}
+
+/**
+ * O WhatsApp às vezes identifica o remetente por um código interno (`lid`) em vez do telefone. Quem monta a
+ * mensagem tenta descobrir o telefone; se não conseguir, `numero` é o próprio código. Por isso o modo de teste
+ * aceita o telefone OU o código na lista.
+ */
+export function remetentePermitido(cfg: Pick<Config, 'numerosPermitidos'>, numero: string, lid?: string): boolean {
+  return numeroPermitido(numero, cfg.numerosPermitidos) || (lid !== undefined && numeroNaLista(lid, cfg.numerosPermitidos))
+}
+
+/**
+ * Quem recebe os avisos é equipe, não cliente: se responder um aviso, o bot não deve atender como se fosse um
+ * cliente. Exceção: se o número também está em NUMEROS_PERMITIDOS, quem está testando (normalmente o dono) quer
+ * mesmo conversar com o bot.
+ */
+export function ehNumeroDaEquipe(cfg: Pick<Config, 'numerosAvisos' | 'numerosPermitidos'>, numero: string, lid?: string): boolean {
+  if (!numeroNaLista(numero, cfg.numerosAvisos)) return false
+  const testando = numeroNaLista(numero, cfg.numerosPermitidos) || (lid !== undefined && numeroNaLista(lid, cfg.numerosPermitidos))
+  return !testando
 }

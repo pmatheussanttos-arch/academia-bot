@@ -7,6 +7,8 @@ export interface MensagemRecebida {
   nome: string
   tipo: string
   texto?: string
+  /** Código interno (`lid`) com que o WhatsApp identificou o remetente, quando ele difere do telefone em `from`. */
+  lid?: string
 }
 
 export interface ClienteWhatsapp {

@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
 import { carregarInstrucoes, limparNome, montarSistema } from './prompt.js'
-import { linkRecepcao } from './recepcao.js'
+import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Notificador } from './notify.js'
 import type { Store } from './store.js'
 
@@ -121,7 +121,7 @@ export async function encaminharParaHumano(
     [
       '🔔 Cliente precisa de atendimento humano',
       `Nome: ${nome?.trim() || '(sem nome no perfil)'}`,
-      `WhatsApp: +${chat}`,
+      `WhatsApp: ${formatarWhatsapp(chat)}`,
       `Motivo: ${motivo}`,
       cfg.handoffHoras > 0
         ? `O bot fica em silêncio com este cliente por ${cfg.handoffHoras}h.`

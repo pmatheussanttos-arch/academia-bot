@@ -72,7 +72,7 @@ Configure o WhatsApp da recepção na variável **`NUMERO_RECEPCAO`** (com DDD, 
 
 Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) como o "WhatsApp 24h" da academia.
 
-Avisos técnicos (por exemplo, token da Meta expirado) aparecem no log da Render. Telegram é opcional e está desligado por padrão: preencha `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` se quiser alertas em um grupo.
+**Avisos à equipe.** Sempre aparecem no log da Render. No modo `qr`, preencha `NUMEROS_AVISOS` com o WhatsApp de quem atende (outro número, não o da academia) e o bot manda a mensagem por lá, com retentativas e um teto por hora (veja o QR-WHATSAPP.md). O Telegram é opcional e funciona junto: preencha `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`. No modo `cloud` só o Telegram está disponível (a API oficial só envia texto livre dentro de 24h da última mensagem).
 
 ## Operação do dia a dia
 
@@ -103,7 +103,7 @@ Avisos técnicos (por exemplo, token da Meta expirado) aparecem no log da Render
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 117 testes sem gastar nada |
+| `test/` | `npm test` roda 150 testes sem gastar nada |
 
 ## Próximas fases
 

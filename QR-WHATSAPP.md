@@ -22,8 +22,11 @@ Como o bot está no **mesmo número** da academia, a equipe continua usando o Wh
 | `ANTHROPIC_API_KEY` | sua chave da Claude API |
 | `ADMIN_TOKEN` | uma senha longa que você inventa (protege a página do QR) |
 | `NUMEROS_PERMITIDOS` | seu celular, com DDD (enquanto testa) |
+| `NUMEROS_AVISOS` | o WhatsApp de quem atende na recepção, com DDD (veja "Avisos para a equipe" abaixo) |
 
 No modo QR você **não precisa** das variáveis `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` nem `NUMERO_RECEPCAO`.
+
+**Modo de teste (`NUMEROS_PERMITIDOS`):** o WhatsApp às vezes identifica a pessoa por um código interno (algo como `277038426505415`) em vez do telefone. O bot descobre o telefone sozinho, então basta colocar o **telefone** em `NUMEROS_PERMITIDOS`. Se o WhatsApp esconder o telefone de alguém, o Log da Render mostra `ignorei +... (código interno ...)`: nesse caso pode colocar o código na lista.
 
 **2. Abra a página de conexão.** Quando o serviço estiver **Live**, abra no navegador:
 
@@ -41,6 +44,17 @@ https://SEU-ENDERECO.onrender.com/conectar?token=SEU_ADMIN_TOKEN
 **4. Pronto.** A página mostra "✅ Conectado". O assistente começa a responder. Mande uma mensagem do seu celular (o que está em `NUMEROS_PERMITIDOS`) para testar.
 
 **5. Libere para todos.** Quando estiver satisfeito, na Render apague a variável `NUMEROS_PERMITIDOS`.
+
+## Avisos para a equipe
+
+Quando o cliente pede uma pessoa, solicita uma avaliação ou aula, ou manda um comprovante, o bot **manda uma mensagem de WhatsApp** para quem atende (com nome, telefone do cliente e o motivo).
+
+- Configure na Render, em **Environment**, a variável `NUMEROS_AVISOS` com o WhatsApp da recepção, com DDD. Vários números: separe por vírgula (`11988887777,11977776666`).
+- **Tem que ser outro número, não o da academia.** O bot envia a partir do número da academia; se o destino for o mesmo, o aviso cai numa conversa consigo mesmo e ninguém é notificado (o bot avisa isso no Log).
+- Quem recebe o aviso e responde nessa conversa **não é atendido pelo bot** (é tratado como equipe). Exceção: se o número também estiver em `NUMEROS_PERMITIDOS`, o bot responde, para você poder testar com o seu próprio celular.
+- Se o WhatsApp da academia estiver desconectado na hora, o bot tenta de novo (10 segundos, 1 minuto e 5 minutos) e depois desiste, deixando o aviso só no Log. Há um teto de 60 avisos por hora para não encher a recepção nem chamar atenção do WhatsApp.
+- **Reserva:** o Telegram continua disponível (`TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`) e funciona junto. Vale a pena se quiser ser avisado até quando o WhatsApp da academia cair ou for banido, que são justamente os casos em que o aviso por WhatsApp não chega.
+- Em `/health`, o campo `avisos` mostra quantos números e se o Telegram estão ligados.
 
 ## Importante
 

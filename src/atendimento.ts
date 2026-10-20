@@ -1,4 +1,4 @@
-import { numeroPermitido } from './config.js'
+import { ehNumeroDaEquipe, remetentePermitido } from './config.js'
 import { encaminharParaHumano, msgErroTecnico, responder, type AgenteDeps } from './agent.js'
 import { linkRecepcao } from './recepcao.js'
 import type { ClienteWhatsapp, MensagemRecebida } from './whatsapp.js'
@@ -62,7 +62,12 @@ async function enviar(deps: AtendimentoDeps, msg: MensagemRecebida, texto: strin
 export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebida): Promise<void> {
   const { cfg, store, wa } = deps
   try {
-    if (!numeroPermitido(msg.from, cfg.numerosPermitidos)) return
+    if (!remetentePermitido(cfg, msg.from, msg.lid)) {
+      // Modo de teste: diz quem foi ignorado, para a pessoa saber o que colocar em NUMEROS_PERMITIDOS.
+      console.log(`[atendimento] ignorei +${msg.from}${msg.lid ? ` (código interno ${msg.lid})` : ''}: não está em NUMEROS_PERMITIDOS`)
+      return
+    }
+    if (ehNumeroDaEquipe(cfg, msg.from, msg.lid)) return // quem recebe os avisos é equipe, não cliente
     if (IGNORAR.has(msg.tipo)) return
 
     const ehTexto = msg.tipo === 'text'

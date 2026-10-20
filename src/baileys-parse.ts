@@ -11,6 +11,8 @@ export interface MensagemBaileys {
     fromMe?: boolean | null
     id?: string | null
     participant?: string | null
+    /** O WhatsApp identifica o contato por um código interno (@lid); aqui vem o telefone (@s.whatsapp.net) correspondente. */
+    remoteJidAlt?: string
   }
   message?: Record<string, unknown> | null
   pushName?: string | null
@@ -22,11 +24,29 @@ export function ehChatPrivado(jid: string | null | undefined): boolean {
   return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid')
 }
 
+export function ehLid(jid: string | null | undefined): boolean {
+  return !!jid && jid.endsWith('@lid')
+}
+
 /** Extrai só os dígitos do número a partir do JID (parte antes do @, sem o sufixo de aparelho :NN). */
 export function numeroDeJid(jid: string | null | undefined): string {
   if (!jid) return ''
   const usuario = jid.split('@')[0] ?? ''
   return (usuario.split(':')[0] ?? '').replace(/\D/g, '')
+}
+
+/**
+ * Telefone do contato (só dígitos), quando a própria mensagem o informa: o chat já é um telefone, ou o chat é um
+ * código interno (@lid) e o WhatsApp mandou o telefone ao lado (`remoteJidAlt`).
+ */
+export function telefoneDaChave(key: MensagemBaileys['key']): string | undefined {
+  for (const jid of [key.remoteJid, key.remoteJidAlt]) {
+    if (jid?.endsWith('@s.whatsapp.net')) {
+      const n = numeroDeJid(jid)
+      if (n) return n
+    }
+  }
+  return undefined
 }
 
 const ENVELOPES = [
@@ -95,17 +115,33 @@ export type Classificacao =
   | { acao: 'cliente'; msg: MensagemRecebida; jid: string }
 
 /**
+ * Quem é o contato: o telefone, sempre que o descobrirmos, para o resto do bot (filtro de teste, histórico, avisos à
+ * equipe) trabalhar com telefone e não com o código interno do WhatsApp. O `jid` original continua sendo o endereço
+ * para responder.
+ */
+function identificarContato(m: MensagemBaileys, telefone: string | undefined): { numero: string; lid?: string } {
+  const jid = m.key.remoteJid ?? ''
+  if (!ehLid(jid)) return { numero: numeroDeJid(jid) }
+  const lid = numeroDeJid(jid)
+  const tel = telefone || telefoneDaChave(m.key)
+  return tel && tel !== lid ? { numero: tel, lid } : { numero: lid }
+}
+
+/**
  * Decide o que fazer com uma mensagem recebida.
  * @param idsDoBot ids de mensagens que o próprio bot enviou (para não reagir ao próprio eco)
+ * @param telefone telefone já descoberto por outro meio (por exemplo, a tabela de conversão da biblioteca)
  */
-export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>): Classificacao {
+export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>, telefone?: string): Classificacao {
   const jid = m.key.remoteJid ?? ''
   if (!ehChatPrivado(jid)) return { acao: 'ignorar' } // grupos, status, listas de transmissão
+
+  const contato = identificarContato(m, telefone)
 
   if (m.key.fromMe) {
     // Mensagem saiu deste número. Se foi o bot, é eco; senão, a equipe respondeu pelo celular.
     if (m.key.id && idsDoBot.has(m.key.id)) return { acao: 'eco' }
-    return { acao: 'humano', numero: numeroDeJid(jid), jid }
+    return { acao: 'humano', numero: contato.numero, jid }
   }
 
   const conteudo = interpretarConteudo(m.message)
@@ -116,10 +152,11 @@ export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>): 
     jid,
     msg: {
       wamid: m.key.id ?? '',
-      from: numeroDeJid(jid),
+      from: contato.numero,
       nome: m.pushName ?? '',
       tipo: conteudo.tipo,
       texto: conteudo.texto,
+      ...(contato.lid ? { lid: contato.lid } : {}),
     },
   }
 }

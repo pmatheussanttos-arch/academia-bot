@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { classificar, conteudoReal, ehChatPrivado, interpretarConteudo, numeroDeJid, type MensagemBaileys } from '../src/baileys-parse.js'
+import { classificar, conteudoReal, ehChatPrivado, ehLid, interpretarConteudo, numeroDeJid, telefoneDaChave, type MensagemBaileys } from '../src/baileys-parse.js'
 
 const PN = '5511999998888@s.whatsapp.net'
 
@@ -92,5 +92,55 @@ describe('classificar mensagem recebida', () => {
     const img = classificar(msg({ message: { imageMessage: { caption: 'comprovante' } } }), semIds)
     assert.equal(img.acao, 'cliente')
     if (img.acao === 'cliente') assert.equal(img.msg.tipo, 'image')
+  })
+})
+
+describe('contato identificado por código interno (@lid)', () => {
+  const LID = '277038426505415@lid'
+  const semIds = new Set<string>()
+
+  it('telefoneDaChave: usa o chat se já for telefone, ou o telefone que o WhatsApp mandou ao lado do código', () => {
+    assert.equal(telefoneDaChave({ remoteJid: PN }), '5511999998888')
+    assert.equal(telefoneDaChave({ remoteJid: LID, remoteJidAlt: '5511999998888@s.whatsapp.net' }), '5511999998888')
+    assert.equal(telefoneDaChave({ remoteJid: LID, remoteJidAlt: '5511999998888:3@s.whatsapp.net' }), '5511999998888')
+    assert.equal(telefoneDaChave({ remoteJid: LID }), undefined)
+    assert.equal(telefoneDaChave({ remoteJid: LID, remoteJidAlt: '123@lid' }), undefined)
+    assert.equal(ehLid(LID), true)
+    assert.equal(ehLid(PN), false)
+  })
+
+  it('cliente: "from" é o telefone (não o código), o código fica em "lid" e a resposta vai para o chat original', () => {
+    const c = classificar(msg({ key: { remoteJid: LID, remoteJidAlt: PN } }), semIds)
+    assert.equal(c.acao, 'cliente')
+    if (c.acao !== 'cliente') return
+    assert.equal(c.msg.from, '5511999998888')
+    assert.equal(c.msg.lid, '277038426505415')
+    assert.equal(c.jid, LID, 'responder no endereço que o WhatsApp usou')
+  })
+
+  it('telefone descoberto pela tabela de conversão da biblioteca (fora da mensagem)', () => {
+    const c = classificar(msg({ key: { remoteJid: LID } }), semIds, '5511999998888')
+    assert.equal(c.acao === 'cliente' && c.msg.from, '5511999998888')
+    assert.equal(c.acao === 'cliente' && c.msg.lid, '277038426505415')
+  })
+
+  it('sem telefone em lugar nenhum: usa o próprio código, sem inventar "lid"', () => {
+    const c = classificar(msg({ key: { remoteJid: LID } }), semIds)
+    assert.equal(c.acao, 'cliente')
+    if (c.acao !== 'cliente') return
+    assert.equal(c.msg.from, '277038426505415')
+    assert.equal('lid' in c.msg, false)
+  })
+
+  it('a equipe respondendo no celular também é identificada pelo telefone (senão o silêncio vai para o cliente errado)', () => {
+    const c = classificar(msg({ key: { remoteJid: LID, remoteJidAlt: PN, fromMe: true, id: 'MANUAL' } }), semIds)
+    assert.equal(c.acao, 'humano')
+    if (c.acao === 'humano') assert.equal(c.numero, '5511999998888')
+  })
+
+  it('o mesmo cliente chegando por telefone ou por código dá o mesmo "from"', () => {
+    const a = classificar(msg(), semIds)
+    const b = classificar(msg({ key: { remoteJid: LID, remoteJidAlt: PN } }), semIds)
+    assert.equal(a.acao === 'cliente' && a.msg.from, b.acao === 'cliente' && b.msg.from)
   })
 })

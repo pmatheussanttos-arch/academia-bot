@@ -111,6 +111,7 @@ export function criarApp(deps: AppDeps): Hono {
       agenda: deps.agenda.modo,
       whatsapp: cfg.modoWhatsapp,
       whatsapp_status: estado?.status,
+      avisos: { whatsapp: cfg.numerosAvisos.length, telegram: Boolean(cfg.telegram) },
     })
   })
 
