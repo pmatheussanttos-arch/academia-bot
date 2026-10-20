@@ -12,6 +12,12 @@ const NOMES_DIAS: Record<DiaSemana, string> = {
   sab: 'sábado',
 }
 
+export type Periodo = 'manha' | 'tarde' | 'noite'
+export const PERIODOS: readonly Periodo[] = ['manha', 'tarde', 'noite']
+/** Como o período aparece nas frases ("Horários livres em Quinta-feira, 22/10 de manhã"). */
+export const NOME_PERIODO: Record<Periodo, string> = { manha: 'de manhã', tarde: 'à tarde', noite: 'à noite' }
+const PERIODOS_PADRAO: Record<Periodo, [string, string]> = { manha: ['00:00', '11:59'], tarde: ['12:00', '17:59'], noite: ['18:00', '23:59'] }
+
 /** Regras de horário das visitas (aula experimental e avaliação). Ficam no arquivo agenda.json. */
 export interface Agenda {
   fusoHorario: string
@@ -26,6 +32,8 @@ export interface Agenda {
   janelas: Record<DiaSemana, Array<[string, string]>>
   /** Datas (AAAA-MM-DD) sem visitas, como feriados. */
   diasFechados: string[]
+  /** Faixas do dia usadas para filtrar os horários oferecidos (pares [primeiro, último], ambos incluídos). */
+  periodos: Record<Periodo, [string, string]>
 }
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -58,6 +66,14 @@ export function carregarAgenda(caminho: string): Agenda {
       return [par[0], par[1]] as [string, string]
     })
   }
+  const periodos = {} as Record<Periodo, [string, string]>
+  for (const p of PERIODOS) {
+    const par = ((a.periodos as Partial<Record<Periodo, unknown>> | undefined)?.[p] ?? PERIODOS_PADRAO[p]) as [string, string]
+    if (!Array.isArray(par) || par.length !== 2 || !HHMM.test(par[0]) || !HHMM.test(par[1]) || minutos(par[0]) > minutos(par[1])) {
+      erro(`"periodos.${p}" precisa ser um intervalo como ["12:00","17:59"]`)
+    }
+    periodos[p] = [par[0], par[1]] as [string, string]
+  }
   const diasFechados = a.diasFechados ?? []
   if (!Array.isArray(diasFechados) || diasFechados.some((d) => typeof d !== 'string' || !dataExiste(d))) {
     erro('"diasFechados" precisa ser uma lista de datas reais no formato AAAA-MM-DD')
@@ -75,7 +91,13 @@ export function carregarAgenda(caminho: string): Agenda {
     diasMaximoFuturo: inteiro(a.diasMaximoFuturo, 'diasMaximoFuturo', 1),
     janelas,
     diasFechados: diasFechados as string[],
+    periodos,
   }
+}
+
+/** Em que período do dia cai um horário (undefined se estiver fora de todas as faixas). */
+export function periodoDe(agenda: Agenda, hhmm: string): Periodo | undefined {
+  return PERIODOS.find((p) => hhmm >= agenda.periodos[p][0] && hhmm <= agenda.periodos[p][1])
 }
 
 function minutos(hhmm: string): number {

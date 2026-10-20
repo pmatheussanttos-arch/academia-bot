@@ -16,6 +16,7 @@
 - **Qualquer evento da agenda que esteja no horário ocupa a vaga**, mesmo que não seja uma avaliação (reunião, por exemplo). Se quiser que um evento não bloqueie, marque-o como **"Livre"** em vez de "Ocupado".
 - **Para fechar um dia inteiro** (feriado, manutenção), crie na agenda um evento de **dia inteiro** com a palavra **"Fechado"** no título. Outros eventos de dia inteiro (aniversários, lembretes) são ignorados.
 - Cada cliente só pode ter **uma** avaliação marcada pelo bot ao mesmo tempo.
+- **Para não encher o chat de horários**, o bot pergunta antes o período do dia ("Prefere de manhã, à tarde ou à noite?"), a não ser que o cliente já tenha dito o período ou um horário. Depois mostra só 3 ou 4 opções daquele período. Se o período estiver cheio, ele sugere os outros. As faixas ficam em `agenda.json`, em `periodos` (padrão: manhã até 11:59, tarde de 12:00 a 17:59, noite a partir de 18:00).
 
 ## Passo a passo
 

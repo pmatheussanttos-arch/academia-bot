@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { ServicoAgenda } from './agendamento.js'
+import type { PeriodoPedido, ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
 import { carregarMensagens } from './mensagens.js'
 import { carregarInstrucoes, limparNome, montarSistema } from './prompt.js'
@@ -85,15 +85,21 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
   {
     name: 'consultar_horarios',
     description:
-      'Lista os horários de aula experimental ou de avaliação em uma data. Para avaliação, consulta o Google Agenda e mostra só os horários livres. Use SEMPRE antes de oferecer ou aceitar um horário: nunca invente horários. Informe a data como AAAA-MM-DD; para "segunda", "amanhã" etc., calcule a partir da data de hoje informada no início da conversa. Não registra nada.',
+      'Lista os horários de aula experimental ou de avaliação em uma data e período do dia. Para avaliação, consulta o Google Agenda e mostra só os horários livres. Use SEMPRE antes de oferecer ou aceitar um horário: nunca invente horários. Informe a data como AAAA-MM-DD; para "segunda", "amanhã" etc., calcule a partir da data de hoje informada no início da conversa. Não registra nada.',
     strict: true,
     input_schema: {
       type: 'object',
       properties: {
         tipo: TIPO_VISITA,
         data: { type: 'string', description: 'Data no formato AAAA-MM-DD, por exemplo 2026-10-19.' },
+        periodo: {
+          type: 'string',
+          enum: ['manha', 'tarde', 'noite', 'qualquer'],
+          description:
+            'Período do dia que a pessoa prefere. Se ela ainda não disse (nem deu um horário), pergunte antes: "Prefere de manhã, à tarde ou à noite?". Use "qualquer" só se ela disser que tanto faz.',
+        },
       },
-      required: ['tipo', 'data'],
+      required: ['tipo', 'data', 'periodo'],
       additionalProperties: false,
     },
   },
@@ -155,7 +161,7 @@ const tipoDe = (v: unknown) => (v === 'aula_experimental' || v === 'avaliacao_fi
 /** Linha de log de cada ferramenta que o modelo usou (sem nome do cliente): mostra se a agenda foi consultada e o que devolveu. */
 export function registroDeFerramenta(bloco: Anthropic.ToolUseBlock, r: Anthropic.ToolResultBlockParam): string {
   const entrada = (bloco.input ?? {}) as Record<string, unknown>
-  const dados = [entrada.tipo, entrada.data, entrada.horario].filter((v) => typeof v === 'string' && v).join(', ')
+  const dados = [entrada.tipo, entrada.data, entrada.periodo, entrada.horario].filter((v) => typeof v === 'string' && v).join(', ')
   const saida = (typeof r.content === 'string' ? r.content : '').replace(/\s+/g, ' ').slice(0, 110)
   return `[agente] ${bloco.name}(${dados}) -> ${r.is_error ? 'erro: ' : ''}${saida}`
 }
@@ -187,7 +193,8 @@ async function executarFerramenta(
   if (bloco.name === 'consultar_horarios') {
     const tipo = tipoDe(entrada.tipo)
     if (!tipo) return resultado(bloco, 'Tipo inválido. Use aula_experimental ou avaliacao_fisica.', true)
-    return resultado(bloco, await deps.agenda.consultar(tipo, campo(entrada.data, 10)))
+    const periodo: PeriodoPedido = entrada.periodo === 'manha' || entrada.periodo === 'tarde' || entrada.periodo === 'noite' ? entrada.periodo : 'qualquer'
+    return resultado(bloco, await deps.agenda.consultar(tipo, campo(entrada.data, 10), periodo))
   }
 
   if (bloco.name === 'solicitar_avaliacao') {

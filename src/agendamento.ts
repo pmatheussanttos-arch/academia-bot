@@ -1,4 +1,4 @@
-import { carregarAgenda, gradeDoDia, limitesDoDia, rotulo, type Agenda, type Slot } from './agenda.js'
+import { NOME_PERIODO, PERIODOS, carregarAgenda, gradeDoDia, limitesDoDia, periodoDe, rotulo, type Agenda, type Periodo, type Slot } from './agenda.js'
 import type { Config } from './config.js'
 import { ClienteGoogleAgenda, type EventoAgenda, type GoogleAgendaApi } from './google.js'
 import { carregarMensagens, renderizar, type Mensagens } from './mensagens.js'
@@ -7,6 +7,8 @@ import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Store } from './store.js'
 
 export type TipoVisita = 'aula_experimental' | 'avaliacao_fisica'
+/** Período pedido na consulta de horários; 'qualquer' = sem filtro. */
+export type PeriodoPedido = Periodo | 'qualquer'
 
 export interface AgendamentoDeps {
   store: Store
@@ -96,31 +98,52 @@ export class ServicoAgenda {
     return this.d.google!.listarEventos(this.d.agendaId!, de, ate)
   }
 
-  /** Lista os horários para o modelo oferecer ao cliente. Nunca lança erro: devolve sempre um texto. */
-  async consultar(tipo: TipoVisita, dataISO: string): Promise<string> {
+  /**
+   * Lista os horários para o modelo oferecer ao cliente, já filtrados pelo período do dia que ele escolheu
+   * (manhã, tarde ou noite), para a conversa não ficar cheia de horários. Nunca lança erro: devolve sempre um texto.
+   */
+  async consultar(tipo: TipoVisita, dataISO: string, periodo: PeriodoPedido = 'qualquer'): Promise<string> {
     const grade = gradeDoDia(this.d.agenda, dataISO, this.agora())
     if (!grade.ok) return grade.motivo
 
-    const usaGoogle = tipo === 'avaliacao_fisica' && this.googleAtivo()
-    if (!usaGoogle) {
+    const { agenda } = this.d
+    const quando = periodo === 'qualquer' ? '' : ` ${NOME_PERIODO[periodo]}`
+    const noPeriodo = (hhmms: string[]) => (periodo === 'qualquer' ? hhmms : hhmms.filter((h) => periodoDe(agenda, h) === periodo))
+    const dica = (lista: string[]) => (lista.length > 4 ? ' Ofereça só 3 ou 4 desses, bem espalhados, e diga que há outros horários se a pessoa quiser.' : '')
+    /** O que existe nos outros períodos, para o modelo sugerir quando o escolhido está cheio. */
+    const outros = (hhmms: string[]) => {
+      const partes = PERIODOS.filter((p) => p !== periodo)
+        .map((p) => ({ p, lista: hhmms.filter((h) => periodoDe(agenda, h) === p) }))
+        .filter((x) => x.lista.length > 0)
+        .map((x) => `${NOME_PERIODO[x.p]}: ${x.lista.join(', ')}`)
+      return partes.length > 0 ? `Há horários ${partes.join('; ')}.` : ''
+    }
+    const daGrade = (aviso: string) => {
+      const todos = grade.slots.map((s) => s.hhmm)
+      const lista = noPeriodo(todos)
+      if (lista.length === 0) return `${aviso}Não há horários da grade${quando} em ${grade.rotuloDia}. ${outros(todos)}`.trim()
       return (
-        `Horários da grade em ${grade.rotuloDia}: ${grade.slots.map((s) => s.hhmm).join(', ')}. ` +
-        'Você não sabe quais já estão ocupados: diga ao cliente que a equipe confirma a disponibilidade.'
+        `${aviso}Horários da grade em ${grade.rotuloDia}${quando}: ${lista.join(', ')}. ` +
+        `Você não sabe quais já estão ocupados: diga ao cliente que a equipe confirma a disponibilidade.${dica(lista)}`
       )
     }
+
+    const usaGoogle = tipo === 'avaliacao_fisica' && this.googleAtivo()
+    if (!usaGoogle) return daGrade('')
 
     try {
       const eventos = await this.eventosDoDia(grade.dataISO)
       if (this.diaFechado(grade.dataISO, eventos)) return `A academia marcou ${grade.rotuloDia} como fechado. Não há avaliações neste dia.`
       const livres = grade.slots.filter((s) => !this.ocupado(s, eventos)).map((s) => s.hhmm)
       if (livres.length === 0) return `Não há horários livres para avaliação em ${grade.rotuloDia}. Sugira outro dia.`
-      return `Horários livres para avaliação em ${grade.rotuloDia}: ${livres.join(', ')}.`
+      const lista = noPeriodo(livres)
+      if (lista.length === 0) {
+        return `Não há horários livres para avaliação${quando} em ${grade.rotuloDia}. ${outros(livres)} Pergunte se a pessoa prefere outro período ou outro dia.`
+      }
+      return `Horários livres para avaliação em ${grade.rotuloDia}${quando}: ${lista.join(', ')}.${dica(lista)}`
     } catch (err) {
       console.error('[agenda] não consegui ler o Google Agenda:', err instanceof Error ? err.message : err)
-      return (
-        `A agenda está indisponível agora. Horários da grade em ${grade.rotuloDia}: ${grade.slots.map((s) => s.hhmm).join(', ')}. ` +
-        'Você não sabe quais estão ocupados: diga que a equipe confirma a disponibilidade.'
-      )
+      return daGrade('A agenda está indisponível agora. ')
     }
   }
 

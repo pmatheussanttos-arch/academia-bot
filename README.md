@@ -98,14 +98,14 @@ Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) c
 | `instrucoes.md` | **O que você edita**: dados e regras da academia |
 | `src/prompt.ts` | Regras fixas de segurança (ficam no código de propósito) |
 | `src/agent.ts` | Conversa com o Claude e as ferramentas (chamar a equipe, consultar horários, agendar) |
-| `agenda.json` | **Você edita**: dias e horários das visitas, antecedência, feriados |
+| `agenda.json` | **Você edita**: dias e horários das visitas, períodos (manhã/tarde/noite), antecedência, feriados |
 | `mensagens.md` | **Você edita**: textos de "avaliação agendada" e "pedido recebido" |
 | `src/agendamento.ts`, `src/agenda.ts`, `src/google.ts` | Regras de horário e integração com o Google Agenda |
 | `src/baileys.ts`, `src/baileys-parse.ts` | Conexão por QR code (modo qr) |
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 205 testes sem gastar nada |
+| `test/` | `npm test` roda 217 testes sem gastar nada |
 
 ## Próximas fases
 
