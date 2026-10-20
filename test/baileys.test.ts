@@ -144,3 +144,56 @@ describe('contato identificado por código interno (@lid)', () => {
     assert.equal(a.acao === 'cliente' && a.msg.from, b.acao === 'cliente' && b.msg.from)
   })
 })
+
+describe('comandos do celular da academia (só o próprio número manda)', () => {
+  const SELF_PN = '5511900000000@s.whatsapp.net'
+  const SELF_LID = '111222333444555@lid'
+  const PROPRIOS = ['5511900000000', '111222333444555']
+  const semIds = new Set<string>()
+  const dele = (texto: string, remoteJid: string, extra: Partial<MensagemBaileys['key']> = {}) =>
+    msg({ key: { remoteJid, fromMe: true, id: `ID${Math.random()}`, ...extra }, message: { conversation: texto } })
+
+  it('"pausar" na conversa consigo mesmo vira comando, por telefone ou por código interno', () => {
+    const a = classificar(dele('pausar', SELF_PN), semIds, undefined, PROPRIOS)
+    assert.deepEqual(a.acao === 'comando' && a.comando, { acao: 'pausar', horas: 1 })
+    assert.equal(a.acao === 'comando' && a.jid, SELF_PN)
+    const b = classificar(dele('Retomar', SELF_LID), semIds, undefined, PROPRIOS)
+    assert.deepEqual(b.acao === 'comando' && b.comando, { acao: 'retomar' })
+    const c = classificar(dele('status', SELF_LID, { remoteJidAlt: SELF_PN }), semIds, undefined, PROPRIOS)
+    assert.equal(c.acao, 'comando')
+  })
+
+  it('SEGURANÇA: "pausar" escrito numa conversa de CLIENTE não pausa o bot todo: é só uma resposta da equipe', () => {
+    const c = classificar(dele('pausar', PN), semIds, undefined, PROPRIOS)
+    assert.equal(c.acao, 'humano')
+    assert.equal(c.acao === 'humano' && c.transferido, false)
+  })
+
+  it('SEGURANÇA: sem saber qual é o número da academia, nada vira comando', () => {
+    assert.equal(classificar(dele('pausar', SELF_PN), semIds).acao, 'humano')
+    assert.equal(classificar(dele('pausar', SELF_PN), semIds, undefined, []).acao, 'humano')
+  })
+
+  it('SEGURANÇA: mensagem RECEBIDA (de cliente) com "pausar" nunca é comando', () => {
+    const c = classificar(msg({ message: { conversation: 'pausar' } }), semIds, undefined, PROPRIOS)
+    assert.equal(c.acao, 'cliente')
+  })
+
+  it('conversa consigo mesmo com texto que não é comando é ignorada (e não silencia ninguém); eco do bot é eco', () => {
+    assert.equal(classificar(dele('lembrar de comprar café', SELF_PN), semIds, undefined, PROPRIOS).acao, 'ignorar')
+    assert.equal(classificar(dele('⏸️ Assistente pausado por 1 hora', SELF_PN, { id: 'BOT9' }), new Set(['BOT9']), undefined, PROPRIOS).acao, 'eco')
+  })
+
+  it('"transferido" escrito pela equipe numa conversa de cliente é marcado; resposta comum não', () => {
+    const t = classificar(dele('Transferido.', PN), semIds, undefined, PROPRIOS)
+    assert.equal(t.acao === 'humano' && t.transferido, true)
+    assert.equal(t.acao === 'humano' && t.numero, '5511999998888')
+    const lid = classificar(dele('transferido', '277038426505415@lid', { remoteJidAlt: PN }), semIds, undefined, PROPRIOS)
+    assert.equal(lid.acao === 'humano' && lid.numero, '5511999998888', 'pelo telefone, não pelo código')
+    assert.equal(lid.acao === 'humano' && lid.transferido, true)
+    const comum = classificar(dele('Oi, já te atendo!', PN), semIds, undefined, PROPRIOS)
+    assert.equal(comum.acao === 'humano' && comum.transferido, false)
+    const frase = classificar(dele('cliente transferido ao financeiro', PN), semIds, undefined, PROPRIOS)
+    assert.equal(frase.acao === 'humano' && frase.transferido, false)
+  })
+})

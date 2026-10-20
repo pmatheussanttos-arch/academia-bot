@@ -6,6 +6,7 @@ import { criarApp } from './app.js'
 import { DriverBaileys } from './baileys.js'
 import { tratarMensagem } from './atendimento.js'
 import { carregarConfig, ehNumeroDaEquipe, exigirWhatsapp } from './config.js'
+import { respostaComando } from './pausa.js'
 import { FilaPorChave } from './fila.js'
 import { criarNotificador, limitarAvisos } from './notify.js'
 import { carregarInstrucoes, instrucoesIncompletas } from './prompt.js'
@@ -86,6 +87,10 @@ if (cfg.numerosPermitidos.length > 0) {
 
 const store = new Store(join(cfg.dataDir, 'bot.db'))
 store.limpar(cfg.retencaoDias)
+{
+  const pausa = store.pausa()
+  if (pausa) console.log(`⏸️  O assistente está PAUSADO${pausa.ate === null ? ' (até alguém reativar)' : ` (volta sozinho em ${new Date(pausa.ate).toISOString()})`}. Reative pela página /conectar ou enviando "retomar".`)
+}
 setInterval(() => store.limpar(cfg.retencaoDias), 6 * 3_600_000).unref()
 
 // No QR, o driver é quem conecta ao WhatsApp, e também envia os avisos para a equipe (a partir do número da academia).
@@ -125,17 +130,28 @@ const deps = {
 const app = criarApp(deps)
 
 if (driver) {
-  const silencioHoras = cfg.handoffHoras > 0 ? cfg.handoffHoras : 6
+  // Cada mensagem humana renova a janela: o bot só volta depois de `silencioHoras` sem nenhuma interação da equipe.
+  const silencioHoras = cfg.handoffHoras > 0 ? cfg.handoffHoras : 1
   await driver.iniciar({
     dispatch: (msg) => {
       if (!store.marcarProcessada(msg.wamid)) return // o WhatsApp reenviou algo já tratado
       void fila.executar(msg.from, () => tratarMensagem(deps, msg))
     },
-    humano: (numero, texto) => {
+    humano: (numero, texto, transferido) => {
       if (ehNumeroDaEquipe(cfg, numero)) return // conversa com quem recebe os avisos: não é um cliente
-      // A equipe respondeu pelo celular, no mesmo número: o bot sai da conversa por um tempo.
-      store.definirHandoff(numero, silencioHoras, 'A equipe respondeu pelo WhatsApp.')
+      // O celular da academia escreveu na conversa: o bot sai dela e só volta depois de um tempo sem ninguém da equipe.
+      store.definirHandoff(numero, silencioHoras, transferido ? 'Transferido pela equipe.' : 'A equipe respondeu pelo WhatsApp.')
+      if (transferido) console.log(`[pausa] conversa de +${numero} marcada como "transferido": o bot volta após ${silencioHoras}h sem mensagem da equipe`)
       if (texto) store.adicionarMensagem(numero, 'assistant', texto)
+    },
+    comando: async (comando, responder) => {
+      // Só chega aqui o que o celular da academia escreveu na conversa consigo mesmo.
+      console.log(`[pausa] comando "${comando.acao}" enviado pelo celular da academia`)
+      try {
+        await responder(respostaComando(store, comando, agenda.fuso))
+      } catch (err) {
+        console.error('[pausa] o comando foi executado, mas não consegui confirmar no WhatsApp:', err instanceof Error ? err.message : err)
+      }
     },
   })
   console.log(`📱 WhatsApp: modo QR code. Abra /conectar?token=SEU_ADMIN_TOKEN para parear o número.`)

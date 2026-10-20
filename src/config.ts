@@ -31,7 +31,7 @@ export interface Config {
   agendamentoAutomatico: boolean
   /** WhatsApp da recepção (só dígitos, com 55). Só no modo oficial (cloud): o bot entrega um link para falar com a equipe. */
   numeroRecepcao?: string
-  /** Horas em que o bot fica calado depois de passar a conversa para uma pessoa (0 = não se cala). */
+  /** Horas em que o bot fica calado numa conversa depois de passar para uma pessoa, contadas da última mensagem humana (0 = não se cala). */
   handoffHoras: number
   /** Máximo de mensagens que um mesmo número pode mandar por hora (protege o seu custo). */
   limiteMsgsPorHora: number
@@ -83,10 +83,17 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // equipe atende no próprio WhatsApp da academia: nenhum número é entregue ao cliente, e NUMERO_RECEPCAO é ignorado.
   const recepcaoBruta = env.NUMERO_RECEPCAO?.trim()
   const numeroRecepcao = modoWhatsapp === 'cloud' && recepcaoBruta ? normalizarNumeroRecepcao(recepcaoBruta) : undefined
-  // Com número da recepção o cliente fala direto com uma pessoa; calar o bot só o deixaria sem resposta.
+  // Com número da recepção (modo oficial) o cliente fala direto com uma pessoa; calar o bot só o deixaria sem resposta.
+  // No modo QR, depois de 1h sem nenhuma mensagem humana na conversa o bot volta a responder sozinho.
   const horasBrutas = env.HANDOFF_HORAS?.trim()
   const handoffHoras =
-    horasBrutas && Number.isFinite(Number(horasBrutas)) && Number(horasBrutas) >= 0 ? Number(horasBrutas) : numeroRecepcao ? 0 : 6
+    horasBrutas && Number.isFinite(Number(horasBrutas)) && Number(horasBrutas) >= 0
+      ? Number(horasBrutas)
+      : modoWhatsapp === 'qr'
+        ? 1
+        : numeroRecepcao
+          ? 0
+          : 6
   // Avisos por WhatsApp só existem no modo QR (a API oficial só envia texto livre dentro de 24h da última mensagem do cliente).
   const numerosAvisos =
     modoWhatsapp === 'qr' ? [...new Set(lista(env.NUMEROS_AVISOS).map((n) => normalizarNumeroRecepcao(n, 'NUMEROS_AVISOS')))] : []

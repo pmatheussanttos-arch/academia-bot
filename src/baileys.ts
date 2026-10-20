@@ -9,6 +9,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import { classificar, ehLid, numeroDeJid, telefoneDaChave, type MensagemBaileys } from './baileys-parse.js'
 import { normalizarNumero } from './config.js'
+import type { Comando } from './pausa.js'
 import type { ClienteWhatsapp, MensagemRecebida } from './whatsapp.js'
 
 export type StatusConexao = 'iniciando' | 'aguardando_qr' | 'conectado' | 'desconectado' | 'desligado'
@@ -29,7 +30,9 @@ export interface HandlersBaileys {
   /** Chama o atendimento para uma mensagem de cliente (o servidor serializa por número). */
   dispatch: (msg: MensagemRecebida) => void
   /** A equipe respondeu pelo próprio celular: o bot deve silenciar aquele cliente. */
-  humano: (numero: string, texto: string | undefined) => void
+  humano: (numero: string, texto: string | undefined, transferido: boolean) => void
+  /** O celular da academia escreveu um comando (pausar, retomar...) na conversa consigo mesmo. `responder` escreve lá. */
+  comando: (comando: Comando, responder: (texto: string) => Promise<void>) => void
 }
 
 /** Logger mínimo no formato que a Baileys espera; silencioso, exceto avisos e erros. */
@@ -177,14 +180,31 @@ export class DriverBaileys implements ClienteWhatsapp {
     }
   }
 
+  /** Dígitos do telefone e do código interno do próprio número da academia (para reconhecer a conversa consigo mesmo). */
+  private identificadoresProprios(): string[] {
+    const eu = this.sock?.user
+    return [eu?.id, eu?.lid].map((j) => numeroDeJid(j)).filter(Boolean)
+  }
+
+  private async enviarNoChat(jid: string, texto: string): Promise<void> {
+    if (!this.sock) throw new Error('WhatsApp ainda não conectado')
+    const enviado = await this.sock.sendMessage(jid, { text: texto })
+    if (enviado?.key?.id) this.lembrarId(this.idsDoBot, enviado.key.id)
+  }
+
   private async tratarInbound(m: MensagemBaileys): Promise<void> {
     const telefone = ehLid(m.key.remoteJid) ? await this.descobrirTelefone(m.key) : undefined
-    const c = classificar(m, this.idsDoBot, telefone)
+    const c = classificar(m, this.idsDoBot, telefone, this.identificadoresProprios())
     if (c.acao === 'ignorar' || c.acao === 'eco') return
 
     if (c.acao === 'humano') {
       // A equipe respondeu pelo celular: o bot sai da conversa.
-      this.handlers?.humano(c.numero, undefined)
+      this.handlers?.humano(c.numero, undefined, c.transferido)
+      return
+    }
+
+    if (c.acao === 'comando') {
+      this.handlers?.comando(c.comando, (texto) => this.enviarNoChat(c.jid, texto))
       return
     }
 

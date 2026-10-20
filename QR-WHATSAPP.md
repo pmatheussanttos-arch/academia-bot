@@ -10,9 +10,9 @@ Outra limitação: essas conexões quebram de tempos em tempos quando o WhatsApp
 
 ## Como a equipe atende junto
 
-Como o bot está no **mesmo número** da academia, a equipe continua usando o WhatsApp normalmente no celular. Quando a equipe responde um cliente pelo celular, **o bot percebe e se cala** com aquele cliente por algumas horas (`HANDOFF_HORAS`, padrão 6).
+Como o bot está no **mesmo número** da academia, a equipe continua usando o WhatsApp normalmente no celular. Quando a equipe escreve para um cliente pelo celular, **o bot percebe e se cala naquela conversa**. Ele só volta a responder sozinho depois de **1 hora sem nenhuma mensagem da equipe** naquela conversa: cada mensagem humana renova essa hora (o prazo é `HANDOFF_HORAS`, padrão 1).
 
-Quando o cliente precisa de uma pessoa (ou o bot não sabe algo), o bot responde só: *"Ok, vou te transferir para um atendente. Aguarde um instante, que já vai te responder! 😊"*, avisa a equipe (veja "Avisos para a equipe" abaixo) e **fica em silêncio com aquele cliente** pelo mesmo prazo. **Nenhum número de telefone é passado ao cliente**: quem atende responde na própria conversa, pelo WhatsApp da academia. Para mudar o texto, edite a seção `transferencia` do `mensagens.md`. O prazo do silêncio é o `HANDOFF_HORAS`.
+Quando o cliente precisa de uma pessoa (ou o bot não sabe algo), o bot responde só: *"Ok, vou te transferir para um atendente. Aguarde um instante, que já vai te responder! 😊"*, avisa a equipe (veja "Avisos para a equipe" abaixo) e **fica em silêncio com aquele cliente**. Se ninguém da equipe falar com ele em 1 hora, o bot volta a responder. **Nenhum número de telefone é passado ao cliente**: quem atende responde na própria conversa, pelo WhatsApp da academia. Para mudar o texto, edite a seção `transferencia` do `mensagens.md`. O prazo do silêncio é o `HANDOFF_HORAS` (padrão 1 hora).
 
 ## Passo a passo
 
@@ -46,6 +46,16 @@ https://SEU-ENDERECO.onrender.com/conectar?token=SEU_ADMIN_TOKEN
 **4. Pronto.** A página mostra "✅ Conectado". O assistente começa a responder. Mande uma mensagem do seu celular (o que está em `NUMEROS_PERMITIDOS`) para testar.
 
 **5. Libere para todos.** Quando estiver satisfeito, na Render apague a variável `NUMEROS_PERMITIDOS`.
+
+## Pausar o assistente
+
+**Uma conversa só:** no celular da academia, escreva a palavra **`transferido`** na conversa do cliente. O bot para de responder só aquele cliente e volta 1 hora depois da última mensagem da equipe nessa conversa. A palavra aparece para o cliente, porque é uma mensagem como outra qualquer. (Qualquer resposta da equipe já silencia o bot naquela conversa; a palavra serve para fazer isso de forma explícita.) Enquanto o bot está calado, as mensagens do cliente **ficam como não lidas** no celular, para a equipe ver.
+
+**O assistente todo (todos os clientes):**
+- **Pelo botão:** abra a página de conexão (o mesmo atalho do QR). No topo aparece "Assistente ATIVO" com os botões **Pausar 1 hora**, **Pausar 4 horas** e **Pausar até eu reativar**. Pausado, aparece **Reativar agora**.
+- **Por WhatsApp:** no celular da academia, abra a conversa **com você mesmo** ("Mensagem para você") e envie `pausar` (1 hora), `pausar 5` (5 horas, de 1 a 72), `pausar sempre`, `retomar` ou `status`. O bot responde na mesma conversa. **Só o celular da academia manda nesses comandos**: cliente, número da equipe ou qualquer outro número que escreva "pausar" não pausa nada.
+
+A pausa geral fica gravada no disco: **um deploy ou reinício não a desfaz**. Pausada, o bot não responde ninguém e não marca as mensagens como lidas. Quem escrever durante a pausa não recebe nada, então não deixe pausado sem necessidade; prefira um prazo.
 
 ## Avisos para a equipe
 

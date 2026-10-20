@@ -2,6 +2,7 @@
  * Funções puras para interpretar as mensagens do WhatsApp recebidas pela biblioteca Baileys (modo QR code).
  * Ficam separadas do código de conexão para poderem ser testadas sem um WhatsApp de verdade.
  */
+import { ehPalavraTransferido, interpretarComando, type Comando } from './pausa.js'
 import type { MensagemRecebida } from './whatsapp.js'
 
 /** Forma mínima de uma mensagem do Baileys que usamos (evita depender dos tipos pesados da lib nos testes). */
@@ -111,7 +112,8 @@ export function interpretarConteudo(message: Record<string, unknown> | null | un
 export type Classificacao =
   | { acao: 'ignorar' }
   | { acao: 'eco' } // mensagem enviada pelo próprio bot que voltou
-  | { acao: 'humano'; numero: string; jid: string } // a equipe respondeu pelo celular
+  | { acao: 'humano'; numero: string; jid: string; transferido: boolean } // a equipe respondeu pelo celular ("transferido" = escreveu a palavra)
+  | { acao: 'comando'; comando: Comando; jid: string } // o celular da academia escreveu um comando na conversa consigo mesmo
   | { acao: 'cliente'; msg: MensagemRecebida; jid: string }
 
 /**
@@ -131,8 +133,10 @@ function identificarContato(m: MensagemBaileys, telefone: string | undefined): {
  * Decide o que fazer com uma mensagem recebida.
  * @param idsDoBot ids de mensagens que o próprio bot enviou (para não reagir ao próprio eco)
  * @param telefone telefone já descoberto por outro meio (por exemplo, a tabela de conversão da biblioteca)
+ * @param proprios dígitos dos identificadores do número da academia (telefone e código interno), para reconhecer a
+ *   conversa consigo mesmo. Comandos só valem aí: só o que sai do celular da academia manda no bot.
  */
-export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>, telefone?: string): Classificacao {
+export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>, telefone?: string, proprios: readonly string[] = []): Classificacao {
   const jid = m.key.remoteJid ?? ''
   if (!ehChatPrivado(jid)) return { acao: 'ignorar' } // grupos, status, listas de transmissão
 
@@ -141,7 +145,16 @@ export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>, t
   if (m.key.fromMe) {
     // Mensagem saiu deste número. Se foi o bot, é eco; senão, a equipe respondeu pelo celular.
     if (m.key.id && idsDoBot.has(m.key.id)) return { acao: 'eco' }
-    return { acao: 'humano', numero: contato.numero, jid }
+
+    const conteudo = interpretarConteudo(m.message)
+    const texto = conteudo.tipo === 'text' ? conteudo.texto : undefined
+    const consigoMesmo = [numeroDeJid(jid), telefone, telefoneDaChave(m.key)].some((n) => n && proprios.includes(n))
+    if (consigoMesmo) {
+      // Conversa do celular da academia consigo mesmo: é o painel por WhatsApp. Qualquer outra coisa é ignorada.
+      const comando = interpretarComando(texto)
+      return comando ? { acao: 'comando', comando, jid } : { acao: 'ignorar' }
+    }
+    return { acao: 'humano', numero: contato.numero, jid, transferido: ehPalavraTransferido(texto) }
   }
 
   const conteudo = interpretarConteudo(m.message)

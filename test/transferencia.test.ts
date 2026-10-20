@@ -29,10 +29,10 @@ function montar(respostas: Parameters<typeof criarDepsDeAgente>[0], extra: Recor
 const msg = (extra: Partial<MensagemRecebida> = {}): MensagemRecebida => ({ wamid: `w${Math.random()}`, from: CHAT, nome: 'Maria', tipo: 'text', texto: 'Oi', ...extra })
 
 describe('modo QR: o cliente nunca recebe número de telefone', () => {
-  it('NUMERO_RECEPCAO é ignorado: sem link, o bot se cala 6h e a equipe atende no WhatsApp da academia', () => {
+  it('NUMERO_RECEPCAO é ignorado: sem link, o bot se cala 1h e a equipe atende no WhatsApp da academia', () => {
     const cfg = carregarConfig({ ...QR_COM_PESSOAL })
     assert.equal(cfg.numeroRecepcao, undefined)
-    assert.equal(cfg.handoffHoras, 6)
+    assert.equal(cfg.handoffHoras, 1)
     assert.deepEqual(cfg.numerosAvisos, [], 'e também não vira destino de aviso')
     assert.doesNotThrow(() => carregarConfig({ WHATSAPP_MODO: 'qr', NUMERO_RECEPCAO: 'lixo' }), 'valor inválido não derruba o modo QR')
   })
@@ -56,7 +56,7 @@ describe('modo QR: o cliente nunca recebe número de telefone', () => {
   it('o aviso à equipe diz para responder pelo WhatsApp da academia e que o bot ficou em silêncio', async () => {
     const t = montar([chamarHumano('Quer cancelar'), texto('ok')])
     await tratarMensagem(t.deps, msg())
-    assert.match(t.avisos[0]!, /O bot fica em silêncio com este cliente por 6h/)
+    assert.match(t.avisos[0]!, /O bot fica em silêncio com este cliente por 1h/)
     assert.match(t.avisos[0]!, /Responda pelo WhatsApp da academia/)
   })
 

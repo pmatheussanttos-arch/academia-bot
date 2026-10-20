@@ -5,6 +5,7 @@ import type { EstadoWhatsapp } from './baileys.js'
 import { tratarMensagem, type AtendimentoDeps } from './atendimento.js'
 import type { Config, ConfigWhatsapp } from './config.js'
 import type { FilaPorChave } from './fila.js'
+import { PAUSA_MAX_HORAS, aplicarPausa, descreverPausa } from './pausa.js'
 import { carregarInstrucoes, instrucoesIncompletas } from './prompt.js'
 import { extrairMensagens, verificarAssinatura } from './whatsapp.js'
 
@@ -23,8 +24,27 @@ function tokensIguais(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb)
 }
 
-function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string): string {
-  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
+
+/** Botões de pausar/reativar o assistente. Cada botão é um formulário POST; o token vai na URL, como no resto do painel. */
+function cartaoPausa(pausa: { ate: number | null } | undefined, token: string, fuso: string): string {
+  const acao = `/admin/pausa?token=${encodeURIComponent(token)}`
+  const form = (campos: string, botao: string, classe = '') =>
+    `<form method="post" action="${esc(acao)}"><input type="hidden" name="voltar" value="conectar">${campos}${botao.replace('<button', `<button class="${classe}"`)}</form>`
+  const pausar = (horas: number, rotulo: string) =>
+    form(`<input type="hidden" name="acao" value="pausar"><input type="hidden" name="horas" value="${horas}">`, `<button type="submit">${rotulo}</button>`, 'pausar')
+  if (!pausa) {
+    return `<section class="pausa ativo"><div class="titulo">🟢 Assistente ATIVO</div>
+      <p>Está respondendo os clientes. Para a equipe atender sozinha por um tempo, pause:</p>
+      <div class="botoes">${pausar(1, '⏸️ Pausar 1 hora')}${pausar(4, '⏸️ Pausar 4 horas')}${pausar(0, '⏸️ Pausar até eu reativar')}</div>
+      <p class="dica">Pelo celular da academia: na conversa com você mesmo, envie <b>pausar</b> (ou <b>retomar</b>). Para uma conversa só, escreva <b>transferido</b> nela.</p></section>`
+  }
+  return `<section class="pausa pausado"><div class="titulo">⏸️ Assistente PAUSADO</div>
+    <p>${esc(descreverPausa(pausa, fuso).replace('⏸️ ', ''))} Ele não está respondendo ninguém e as mensagens ficam não lidas no celular.</p>
+    <div class="botoes">${form('<input type="hidden" name="acao" value="retomar">', '<button type="submit">▶️ Reativar agora</button>', 'reativar')}</div></section>`
+}
+
+function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = ''): string {
   let miolo: string
   if (estado.status === 'conectado') {
     miolo = `<div class="ok">✅ Conectado${estado.numero ? ` como <b>+${esc(estado.numero)}</b>` : ''}</div>
@@ -39,7 +59,7 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
   // Recarrega a cada 5s, exceto quando já conectado.
   const refresh = estado.status === 'conectado' ? '' : `<meta http-equiv="refresh" content="5;url=?token=${encodeURIComponent(token)}">`
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">${refresh}
+    <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">${refresh}
     <title>Conectar o assistente</title>
     <style>
       body{font-family:system-ui,sans-serif;max-width:460px;margin:40px auto;padding:0 16px;text-align:center;color:#222}
@@ -48,8 +68,19 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .aguarde{font-size:1.1rem;color:#8a5a00;margin:24px 0}
       .dica{color:#666;font-size:.9rem}
       h1{font-size:1.2rem}
+      .pausa{margin-top:28px;padding:16px;border-radius:12px;text-align:left}
+      .pausa.ativo{background:#eaf7ee;border:1px solid #b7e2c3}
+      .pausa.pausado{background:#fff4e0;border:1px solid #f0c987}
+      .pausa .titulo{font-weight:700;font-size:1.1rem}
+      .pausa p{margin:8px 0;color:#333}
+      .pausa .dica{color:#666;font-size:.85rem}
+      .botoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+      .botoes form{margin:0}
+      .botoes button{font:inherit;font-weight:600;padding:10px 14px;border:0;border-radius:8px;color:#fff;cursor:pointer}
+      .botoes button.pausar{background:#c2680a}
+      .botoes button.reativar{background:#0a7a2f;font-size:1.05rem;padding:12px 18px}
     </style></head><body>
-    <h1>Assistente da GarageFit</h1>${miolo}
+    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}
     </body></html>`
 }
 
@@ -112,6 +143,7 @@ export function criarApp(deps: AppDeps): Hono {
       whatsapp: cfg.modoWhatsapp,
       whatsapp_status: estado?.status,
       avisos: { whatsapp: cfg.numerosAvisos.length, telegram: Boolean(cfg.telegram) },
+      pausado: store.pausa() !== undefined,
     })
   })
 
@@ -133,7 +165,7 @@ export function criarApp(deps: AppDeps): Hono {
       if (estado.status === 'aguardando_qr' && estado.qr) {
         imagem = await QRCode.toDataURL(estado.qr, { margin: 1, width: 300 }).catch(() => undefined)
       }
-      return c.html(paginaQr(estado, imagem, token!))
+      return c.html(paginaQr(estado, imagem, token!, cartaoPausa(store.pausa(), token!, deps.agenda.fuso)))
     })
   }
 
@@ -141,6 +173,36 @@ export function criarApp(deps: AppDeps): Hono {
   app.get('/admin/handoffs', (c) => {
     if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
     return c.json({ handoffs: store.handoffsAtivos() })
+  })
+
+  // Pausa geral do assistente. GET mostra o estado; POST pausa ou reativa (formulário da página ou JSON).
+  app.get('/admin/pausa', (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    const pausa = store.pausa()
+    return c.json({ pausado: pausa !== undefined, ate: pausa?.ate ?? null, descricao: descreverPausa(pausa, deps.agenda.fuso) })
+  })
+
+  app.post('/admin/pausa', async (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    const json = (c.req.header('content-type') ?? '').includes('json')
+    const dados = (json ? await c.req.json().catch(() => ({})) : await c.req.parseBody().catch(() => ({}))) as Record<string, unknown>
+
+    if (dados.acao === 'pausar') {
+      const horas = Number(dados.horas ?? 0)
+      if (!Number.isFinite(horas) || horas < 0 || horas > PAUSA_MAX_HORAS) return c.json({ erro: `"horas" deve ir de 1 a ${PAUSA_MAX_HORAS} (ou 0 para pausar até reativar)` }, 400)
+      aplicarPausa(store, horas === 0 ? null : horas)
+      console.log(`[pausa] assistente pausado pelo painel (${horas === 0 ? 'até reativar' : `${horas}h`})`)
+    } else if (dados.acao === 'retomar') {
+      store.retomar()
+      console.log('[pausa] assistente reativado pelo painel')
+    } else {
+      return c.json({ erro: 'informe "acao": "pausar" ou "retomar"' }, 400)
+    }
+
+    const token = c.req.query('token')
+    if (dados.voltar === 'conectar' && token) return c.redirect(`/conectar?token=${encodeURIComponent(token)}`, 303)
+    const pausa = store.pausa()
+    return c.json({ pausado: pausa !== undefined, ate: pausa?.ate ?? null })
   })
 
   app.post('/admin/liberar', async (c) => {

@@ -73,12 +73,16 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
     const ehTexto = msg.tipo === 'text'
     if (ehTexto && !msg.texto?.trim()) return
 
-    wa.marcarLida(msg.wamid).catch(() => undefined)
-
     const registro = ehTexto ? msg.texto!.trim().slice(0, MAX_ENTRADA) : `[${NOMES_TIPO[msg.tipo] ?? msg.tipo} enviado${msg.texto ? `: ${msg.texto.slice(0, 200)}` : ''}]`
     store.adicionarMensagem(msg.from, 'user', registro)
 
-    if (store.emHandoff(msg.from, (deps.agora ?? (() => new Date()))().getTime())) return // a equipe está cuidando
+    // Pausa geral ou conversa com a equipe: o bot não responde. Também NÃO marca como lida, para a equipe ver a
+    // mensagem ainda não lida no celular (e o cliente não ver "lido" sem que ninguém tenha lido).
+    const agora = (deps.agora ?? (() => new Date()))().getTime()
+    if (store.pausa(agora)) return
+    if (store.emHandoff(msg.from, agora)) return // a equipe está cuidando
+
+    wa.marcarLida(msg.wamid).catch(() => undefined)
 
     const limite = avaliarLimite(deps, msg.from)
     if (limite === 'silenciar') return

@@ -58,7 +58,34 @@ export class Store {
         criada INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_agendamentos_chat ON agendamentos (chat, inicio);
+      CREATE TABLE IF NOT EXISTS ajustes (
+        chave TEXT PRIMARY KEY,
+        valor TEXT NOT NULL
+      );
     `)
+  }
+
+  // --- Pausa geral do assistente (botão no painel). Fica no banco para sobreviver a reinícios e deploys. ---
+
+  /** Pausa o assistente. `ate`: instante em que volta sozinho; `null` = só volta quando alguém reativar. */
+  pausar(ate: number | null): void {
+    this.db
+      .prepare("INSERT INTO ajustes (chave, valor) VALUES ('pausa', ?) ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor")
+      .run(ate === null ? 'sempre' : String(ate))
+  }
+
+  /** Reativa o assistente. Retorna true se ele estava pausado. */
+  retomar(): boolean {
+    return Number(this.db.prepare("DELETE FROM ajustes WHERE chave = 'pausa'").run().changes) > 0
+  }
+
+  /** A pausa em vigor, ou undefined se o assistente está ativo (inclusive quando a pausa já venceu). */
+  pausa(agora = Date.now()): { ate: number | null } | undefined {
+    const r = this.db.prepare("SELECT valor FROM ajustes WHERE chave = 'pausa'").get() as unknown as { valor: string } | undefined
+    if (!r) return undefined
+    if (r.valor === 'sempre') return { ate: null }
+    const ate = Number(r.valor)
+    return Number.isFinite(ate) && ate > agora ? { ate } : undefined
   }
 
   // --- Avaliações agendadas pelo bot no Google Agenda ---

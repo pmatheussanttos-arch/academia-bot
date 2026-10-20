@@ -251,6 +251,7 @@ describe('conexão Baileys (com socket simulado)', () => {
   function sockFalso(opcoes: { existe?: boolean; jid?: string; mapa?: Record<string, string>; mapaFalha?: boolean } = {}): SockFalso {
     const f: SockFalso = { enviadas: [], consultas: [], sock: undefined }
     f.sock = {
+      user: { id: '5511900000000:3@s.whatsapp.net', lid: '111222333444555:3@lid' },
       async onWhatsApp(n: string) {
         f.consultas.push(n)
         return [{ jid: opcoes.jid ?? `${n}@s.whatsapp.net`, exists: opcoes.existe ?? true }]
@@ -302,7 +303,7 @@ describe('conexão Baileys (com socket simulado)', () => {
     const f = sockFalso({ mapa: { [`${LID}@lid`]: `${DONO}:0@s.whatsapp.net` } })
     const d = driver(f)
     const recebidas: MensagemRecebida[] = []
-    d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {} }
+    d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, comando: () => {} }
     await d['tratarInbound']({ key: { remoteJid: `${LID}@lid`, fromMe: false, id: 'M1' }, message: { conversation: 'Quanto custa?' }, pushName: 'Matheus' })
     assert.equal(recebidas[0]!.from, DONO)
     assert.equal(recebidas[0]!.lid, LID)
@@ -314,17 +315,56 @@ describe('conexão Baileys (com socket simulado)', () => {
     for (const opcoes of [{}, { mapaFalha: true }]) {
       const d = driver(sockFalso(opcoes))
       const recebidas: MensagemRecebida[] = []
-      d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {} }
+      d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, comando: () => {} }
       await d['tratarInbound']({ key: { remoteJid: `${LID}@lid`, fromMe: false, id: 'M2' }, message: { conversation: 'oi' } })
       assert.equal(recebidas[0]!.from, LID)
     }
+  })
+
+  it('"pausar" na conversa da academia consigo mesma chama o comando e a confirmação volta para lá', async () => {
+    const f = sockFalso()
+    const d = driver(f)
+    const comandos: unknown[] = []
+    d['handlers'] = {
+      dispatch: () => {},
+      humano: () => {},
+      comando: (c, responder) => {
+        comandos.push(c)
+        void responder('⏸️ pausado')
+      },
+    }
+    await d['tratarInbound']({ key: { remoteJid: '5511900000000@s.whatsapp.net', fromMe: true, id: 'EU1' }, message: { conversation: 'pausar' } })
+    await d['tratarInbound']({ key: { remoteJid: '111222333444555@lid', fromMe: true, id: 'EU2' }, message: { conversation: 'retomar' } })
+    await new Promise((r) => setImmediate(r))
+    assert.deepEqual(comandos, [{ acao: 'pausar', horas: 1 }, { acao: 'retomar' }])
+    assert.deepEqual(f.enviadas.map((e) => e.jid), ['5511900000000@s.whatsapp.net', '111222333444555@lid'], 'responde no mesmo chat')
+    assert.ok(d['idsDoBot'].has('ENVIADO1'), 'a confirmação não volta como se fosse comando novo')
+  })
+
+  it('SEGURANÇA: cliente escrevendo "pausar" vai para o atendimento comum, nunca para o comando', async () => {
+    const d = driver(sockFalso())
+    const recebidas: MensagemRecebida[] = []
+    let comandos = 0
+    d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, comando: () => void comandos++ }
+    await d['tratarInbound']({ key: { remoteJid: `${DONO}@s.whatsapp.net`, fromMe: false, id: 'C1' }, message: { conversation: 'pausar' } })
+    assert.equal(comandos, 0)
+    assert.equal(recebidas[0]!.texto, 'pausar')
+  })
+
+  it('"transferido" escrito no celular da academia numa conversa de cliente silencia só aquele cliente', async () => {
+    const d = driver(sockFalso())
+    const silenciados: Array<[string, boolean]> = []
+    d['handlers'] = { dispatch: () => {}, humano: (n, _t, transferido) => void silenciados.push([n, transferido]), comando: () => {} }
+    await d['tratarInbound']({ key: { remoteJid: `${DONO}@s.whatsapp.net`, fromMe: true, id: 'T1' }, message: { conversation: 'Transferido' } })
+    await d['tratarInbound']({ key: { remoteJid: `${DONO}@s.whatsapp.net`, fromMe: true, id: 'T2' }, message: { conversation: 'Já te atendo!' } })
+    assert.deepEqual(silenciados, [[DONO, true], [DONO, false]])
   })
 
   it('a equipe respondendo no celular a um contato @lid silencia o cliente certo (pelo telefone)', async () => {
     const f = sockFalso({ mapa: { [`${LID}@lid`]: `${DONO}:0@s.whatsapp.net` } })
     const d = driver(f)
     const silenciados: string[] = []
-    d['handlers'] = { dispatch: () => {}, humano: (n) => void silenciados.push(n) }
+    d['handlers'] = { dispatch: () => {}, humano: (n) => void silenciados.push(n), comando: () => {} }
     await d['tratarInbound']({ key: { remoteJid: `${LID}@lid`, fromMe: true, id: 'DOCELULAR' }, message: { conversation: 'Já te respondo' } })
     assert.deepEqual(silenciados, [DONO])
   })
