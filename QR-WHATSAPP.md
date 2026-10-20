@@ -10,7 +10,9 @@ Outra limitação: essas conexões quebram de tempos em tempos quando o WhatsApp
 
 ## Como a equipe atende junto
 
-Como o bot está no **mesmo número** da academia, a equipe continua usando o WhatsApp normalmente no celular. Quando a equipe responde um cliente pelo celular, **o bot percebe e se cala** com aquele cliente por algumas horas (`HANDOFF_HORAS`, padrão 6). Quando o bot não sabe algo, ele avisa que a equipe vai responder, e a equipe vê a conversa no próprio aparelho.
+Como o bot está no **mesmo número** da academia, a equipe continua usando o WhatsApp normalmente no celular. Quando a equipe responde um cliente pelo celular, **o bot percebe e se cala** com aquele cliente por algumas horas (`HANDOFF_HORAS`, padrão 6).
+
+Quando o cliente precisa de uma pessoa (ou o bot não sabe algo), o bot responde só: *"Ok, vou te transferir para um atendente. Aguarde um instante, que já vai te responder! 😊"*, avisa a equipe (veja "Avisos para a equipe" abaixo) e **fica em silêncio com aquele cliente** pelo mesmo prazo. **Nenhum número de telefone é passado ao cliente**: quem atende responde na própria conversa, pelo WhatsApp da academia. Para mudar o texto, edite a seção `transferencia` do `mensagens.md`. O prazo do silêncio é o `HANDOFF_HORAS`.
 
 ## Passo a passo
 
@@ -24,7 +26,7 @@ Como o bot está no **mesmo número** da academia, a equipe continua usando o Wh
 | `NUMEROS_PERMITIDOS` | seu celular, com DDD (enquanto testa) |
 | `NUMEROS_AVISOS` | o WhatsApp de quem atende na recepção, com DDD (veja "Avisos para a equipe" abaixo) |
 
-No modo QR você **não precisa** das variáveis `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` nem `NUMERO_RECEPCAO`.
+No modo QR você **não precisa** das variáveis `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` nem `NUMERO_RECEPCAO`. Se `NUMERO_RECEPCAO` estiver preenchida, ela é **ignorada** neste modo (o cliente nunca recebe link com o número de ninguém); pode apagá-la.
 
 **Modo de teste (`NUMEROS_PERMITIDOS`):** o WhatsApp às vezes identifica a pessoa por um código interno (algo como `277038426505415`) em vez do telefone. O bot descobre o telefone sozinho, então basta colocar o **telefone** em `NUMEROS_PERMITIDOS`. Se o WhatsApp esconder o telefone de alguém, o Log da Render mostra `ignorei +... (código interno ...)`: nesse caso pode colocar o código na lista.
 

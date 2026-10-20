@@ -61,6 +61,8 @@ O passo a passo completo, com a hospedagem recomendada, está no arquivo **HOSPE
 
 ## Como o cliente fala com a equipe
 
+**Modo `qr`:** o cliente recebe só a mensagem de transferência (texto editável na seção `transferencia` do `mensagens.md`); o bot avisa a equipe e se cala naquela conversa, e quem atende responde pelo WhatsApp da academia. Nenhum número é divulgado. O resto desta seção descreve o modo `cloud`.
+
 O assistente atende num **número só dele**, onde ninguém da equipe lê as mensagens (um número ligado à API não funciona ao mesmo tempo no app WhatsApp Business). Por isso:
 
 - Quando o cliente precisa de uma pessoa (cancelamento, desconto, lesão, dúvida que o bot não sabe, problema técnico), o bot envia um **link que abre o WhatsApp da recepção com a mensagem já escrita** (inclusive o motivo). O cliente só toca e envia, e a equipe recebe **no app que já usa**.
@@ -103,7 +105,7 @@ Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) c
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 150 testes sem gastar nada |
+| `test/` | `npm test` roda 161 testes sem gastar nada |
 
 ## Próximas fases
 

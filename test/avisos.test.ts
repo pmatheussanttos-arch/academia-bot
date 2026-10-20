@@ -19,8 +19,8 @@ describe('configuração dos avisos à equipe (NUMEROS_AVISOS)', () => {
     assert.deepEqual(cfg.numerosAvisos, ['5511988887777', '5511977776666'])
   })
 
-  it('sem NUMEROS_AVISOS usa o NUMERO_RECEPCAO; sem nenhum dos dois, fica vazio', () => {
-    assert.deepEqual(carregarConfig({ ...QR, NUMERO_RECEPCAO: '11988887777' }).numerosAvisos, [RECEPCAO])
+  it('o NUMERO_RECEPCAO nunca vira destino de aviso: só NUMEROS_AVISOS, e sem ele fica vazio', () => {
+    assert.deepEqual(carregarConfig({ ...QR, NUMERO_RECEPCAO: '11988887777' }).numerosAvisos, [])
     assert.deepEqual(carregarConfig({ ...QR }).numerosAvisos, [])
     assert.deepEqual(carregarConfig({ ...QR, NUMERO_RECEPCAO: '11988887777', NUMEROS_AVISOS: '11977776666' }).numerosAvisos, ['5511977776666'])
   })

@@ -74,6 +74,9 @@ console.log(
     ? `🔔 Avisos à equipe: ${canaisDeAviso.join(' e ')}.`
     : 'ℹ️  Avisos à equipe só aparecem neste log. Defina NUMEROS_AVISOS (WhatsApp da recepção) para a equipe receber de verdade.',
 )
+if (modoQr && process.env.NUMERO_RECEPCAO?.trim()) {
+  console.log('ℹ️  NUMERO_RECEPCAO é ignorado no modo QR: o cliente não recebe número nenhum, a equipe atende no próprio WhatsApp da academia.')
+}
 if (!modoQr && process.env.NUMEROS_AVISOS?.trim()) {
   console.log('ℹ️  NUMEROS_AVISOS só funciona no modo QR; no modo Cloud use o Telegram.')
 }

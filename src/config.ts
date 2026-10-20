@@ -29,7 +29,7 @@ export interface Config {
   google?: { agendaId: string; clientEmail: string; privateKey: string }
   /** Se o bot agenda avaliações sozinho no Google Agenda (precisa de `google`). */
   agendamentoAutomatico: boolean
-  /** WhatsApp da recepção (só dígitos, com 55). Se definido, o bot entrega um link para falar com a equipe. */
+  /** WhatsApp da recepção (só dígitos, com 55). Só no modo oficial (cloud): o bot entrega um link para falar com a equipe. */
   numeroRecepcao?: string
   /** Horas em que o bot fica calado depois de passar a conversa para uma pessoa (0 = não se cala). */
   handoffHoras: number
@@ -78,20 +78,18 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   const google =
     idAgenda && credenciais ? { agendaId: idAgenda, ...lerCredenciaisGoogle(credenciais) } : undefined
+  const modoWhatsapp: ModoWhatsapp = (env.WHATSAPP_MODO?.trim() || 'cloud') === 'qr' ? 'qr' : 'cloud'
+  // O link para a recepção só faz sentido no modo oficial, onde o bot atende num número que ninguém lê. No modo QR a
+  // equipe atende no próprio WhatsApp da academia: nenhum número é entregue ao cliente, e NUMERO_RECEPCAO é ignorado.
   const recepcaoBruta = env.NUMERO_RECEPCAO?.trim()
-  const numeroRecepcao = recepcaoBruta ? normalizarNumeroRecepcao(recepcaoBruta) : undefined
+  const numeroRecepcao = modoWhatsapp === 'cloud' && recepcaoBruta ? normalizarNumeroRecepcao(recepcaoBruta) : undefined
   // Com número da recepção o cliente fala direto com uma pessoa; calar o bot só o deixaria sem resposta.
   const horasBrutas = env.HANDOFF_HORAS?.trim()
   const handoffHoras =
     horasBrutas && Number.isFinite(Number(horasBrutas)) && Number(horasBrutas) >= 0 ? Number(horasBrutas) : numeroRecepcao ? 0 : 6
-  const modoWhatsapp: ModoWhatsapp = (env.WHATSAPP_MODO?.trim() || 'cloud') === 'qr' ? 'qr' : 'cloud'
   // Avisos por WhatsApp só existem no modo QR (a API oficial só envia texto livre dentro de 24h da última mensagem do cliente).
-  // Sem NUMEROS_AVISOS, usa o NUMERO_RECEPCAO, se houver.
-  const avisosBrutos = lista(env.NUMEROS_AVISOS)
   const numerosAvisos =
-    modoWhatsapp !== 'qr'
-      ? []
-      : [...new Set(avisosBrutos.length > 0 ? avisosBrutos.map((n) => normalizarNumeroRecepcao(n, 'NUMEROS_AVISOS')) : numeroRecepcao ? [numeroRecepcao] : [])]
+    modoWhatsapp === 'qr' ? [...new Set(lista(env.NUMEROS_AVISOS).map((n) => normalizarNumeroRecepcao(n, 'NUMEROS_AVISOS')))] : []
   const effort = (env.CLAUDE_EFFORT ?? 'low') as Esforco
   const telegramToken = env.TELEGRAM_BOT_TOKEN?.trim()
   const telegramChat = env.TELEGRAM_CHAT_ID?.trim()

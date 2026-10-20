@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
+import { carregarMensagens } from './mensagens.js'
 import { carregarInstrucoes, limparNome, montarSistema } from './prompt.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Notificador } from './notify.js'
@@ -22,7 +23,7 @@ export interface AgenteDeps {
   agora?: () => Date
 }
 
-export const MSG_HANDOFF_PADRAO = 'Já avisei a equipe! Alguém vai te responder por aqui em breve. 😊'
+export const MSG_HANDOFF_PADRAO = 'Ok, vou te transferir para um atendente. Aguarde um instante, que já vai te responder! 😊'
 export const MSG_ERRO_TECNICO = 'Tive um problema técnico aqui, mas já avisei a equipe para falar com você. 😊'
 
 /** Link que abre o WhatsApp da recepção com a mensagem já escrita (só existe se NUMERO_RECEPCAO estiver definido). */
@@ -30,10 +31,19 @@ export function linkHandoff(cfg: Config, motivo: string): string | undefined {
   return linkRecepcao(cfg.numeroRecepcao, `Oi! Vim pelo assistente virtual e preciso falar com uma pessoa. ${motivo}`)
 }
 
+/** Texto de transferência para uma pessoa: o da seção "transferencia" do mensagens.md, ou o padrão. */
+export function textoTransferencia(cfg: Config): string {
+  try {
+    return carregarMensagens(cfg.mensagensPath).transferencia?.trim() || MSG_HANDOFF_PADRAO
+  } catch {
+    return MSG_HANDOFF_PADRAO // mensagens.md ilegível: o cliente não pode ficar sem resposta
+  }
+}
+
 /** Mensagem fixa para o cliente quando a conversa precisa de uma pessoa. */
 export function msgHandoff(cfg: Config, motivo: string): string {
   const link = linkHandoff(cfg, motivo)
-  return link ? `Para falar com a nossa equipe agora, toque no link e envie a mensagem que já está pronta 👇\n${link}` : MSG_HANDOFF_PADRAO
+  return link ? `Para falar com a nossa equipe agora, toque no link e envie a mensagem que já está pronta 👇\n${link}` : textoTransferencia(cfg)
 }
 
 export function msgErroTecnico(cfg: Config): string {
@@ -128,6 +138,7 @@ export async function encaminharParaHumano(
         : cfg.numeroRecepcao
           ? 'O cliente recebeu o link para falar com a recepção; o bot continua atendendo.'
           : 'O bot continua atendendo.',
+      ...(cfg.modoWhatsapp === 'qr' ? ['Responda pelo WhatsApp da academia.'] : []),
     ].join('\n'),
   )
 }
@@ -161,7 +172,7 @@ async function executarFerramenta(
       bloco,
       link
         ? `Equipe avisada. Diga ao cliente, em uma frase curta, que para falar com a recepção agora ele deve tocar no link abaixo (a mensagem já vai pronta). Envie o link exatamente como está, sem alterar. Não faça mais perguntas nem chamada para ação.\n${link}`
-        : 'Equipe avisada. Diga ao cliente, em uma frase simples, que alguém da equipe responde em breve. Não faça mais perguntas nem chamada para ação.',
+        : `Equipe avisada. Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nada e sem acrescentar texto antes ou depois. Não faça perguntas nem chamada para ação, e não cite telefone nenhum.\n---\n${textoTransferencia(deps.cfg)}\n---`,
     )
   }
 
