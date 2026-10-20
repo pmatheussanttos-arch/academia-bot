@@ -89,7 +89,9 @@ Com o bot já funcionando, siga o arquivo **GOOGLE-AGENDA.md**. Em resumo, você
 
 ## Dia a dia
 
-- **Mudar preço, horário ou regra:** no GitHub, abra `instrucoes.md`, clique no lápis, edite e clique em **Commit changes**. A Render atualiza o bot sozinha em alguns minutos.
+> **Atualizar o bot depois de mudar algo:** os arquivos vão para dentro do pacote que a Render sobe, então mudar no GitHub não muda o bot que está no ar. Se o serviço foi criado conectando o repositório pelo GitHub, a Render atualiza sozinha em alguns minutos. Se foi criado pela **URL pública** do repositório, ela **não** atualiza sozinha: na Render, abra o serviço e clique em **Manual Deploy → Deploy latest commit**. O bot fica fora do ar por alguns instantes e reconecta sozinho ao WhatsApp, sem novo QR.
+
+- **Mudar preço, horário ou regra:** no GitHub, abra `instrucoes.md`, clique no lápis, edite e clique em **Commit changes**. Depois atualize o bot (aviso acima).
 - **Mudar horários das avaliações, antecedência ou feriados:** edite o `agenda.json` do mesmo jeito.
 - **Mudar os textos de "avaliação agendada" e "pedido recebido":** edite o `mensagens.md`.
 - **Atualizar uma senha ou token:** Render > Environment.
