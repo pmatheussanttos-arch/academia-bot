@@ -197,3 +197,27 @@ describe('comandos do celular da academia (só o próprio número manda)', () =>
     assert.equal(frase.acao === 'humano' && frase.transferido, false)
   })
 })
+
+describe('devolver uma conversa ao bot com a palavra "retomar"', () => {
+  const PROPRIOS = ['5511900000000', '111222333444555']
+  const semIds = new Set<string>()
+  const dele = (texto: string, remoteJid: string, extra: Partial<MensagemBaileys['key']> = {}) =>
+    msg({ key: { remoteJid, fromMe: true, id: `ID${Math.random()}`, ...extra }, message: { conversation: texto } })
+
+  it('"retomar" escrito pelo celular da academia na conversa de um cliente devolve aquele cliente ao bot', () => {
+    const a = classificar(dele('retomar', PN), semIds, undefined, PROPRIOS)
+    assert.equal(a.acao, 'liberar')
+    assert.equal(a.acao === 'liberar' && a.numero, '5511999998888')
+    const b = classificar(dele('Reativar.', '277038426505415@lid', { remoteJidAlt: PN }), semIds, undefined, PROPRIOS)
+    assert.equal(b.acao === 'liberar' && b.numero, '5511999998888', 'pelo telefone, não pelo código')
+  })
+
+  it('NÃO confunde: frases, outras palavras e mensagem do cliente continuam como antes', () => {
+    assert.equal(classificar(dele('vou reativar sua matrícula', PN), semIds, undefined, PROPRIOS).acao, 'humano')
+    assert.equal(classificar(dele('pausar', PN), semIds, undefined, PROPRIOS).acao, 'humano')
+    assert.equal(classificar(dele('Oi, já te atendo!', PN), semIds, undefined, PROPRIOS).acao, 'humano')
+    assert.equal(classificar(msg({ message: { conversation: 'retomar' } }), semIds, undefined, PROPRIOS).acao, 'cliente', 'cliente não devolve nada')
+    const eu = classificar(dele('retomar', '5511900000000@s.whatsapp.net'), semIds, undefined, PROPRIOS)
+    assert.equal(eu.acao, 'comando', 'na conversa consigo mesmo continua sendo a pausa geral')
+  })
+})

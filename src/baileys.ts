@@ -31,6 +31,8 @@ export interface HandlersBaileys {
   dispatch: (msg: MensagemRecebida) => void
   /** A equipe respondeu pelo próprio celular: o bot deve silenciar aquele cliente. */
   humano: (numero: string, texto: string | undefined, transferido: boolean) => void
+  /** A equipe escreveu "retomar" na conversa do cliente: o bot volta a responder aquele cliente. */
+  liberar: (numero: string) => void
   /** O celular da academia escreveu um comando (pausar, retomar...) na conversa consigo mesmo. `responder` escreve lá. */
   comando: (comando: Comando, responder: (texto: string) => Promise<void>) => void
 }
@@ -200,6 +202,11 @@ export class DriverBaileys implements ClienteWhatsapp {
     if (c.acao === 'humano') {
       // A equipe respondeu pelo celular: o bot sai da conversa.
       this.handlers?.humano(c.numero, undefined, c.transferido)
+      return
+    }
+
+    if (c.acao === 'liberar') {
+      this.handlers?.liberar(c.numero)
       return
     }
 

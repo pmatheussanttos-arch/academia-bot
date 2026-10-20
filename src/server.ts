@@ -144,6 +144,11 @@ if (driver) {
       if (transferido) console.log(`[pausa] conversa de +${numero} marcada como "transferido": o bot volta após ${silencioHoras}h sem mensagem da equipe`)
       if (texto) store.adicionarMensagem(numero, 'assistant', texto)
     },
+    liberar: (numero) => {
+      if (ehNumeroDaEquipe(cfg, numero)) return
+      const estava = store.liberarHandoff(numero)
+      console.log(`[pausa] conversa de +${numero} devolvida ao bot pela palavra "retomar"${estava ? '' : ' (o bot já estava respondendo)'}`)
+    },
     comando: async (comando, responder) => {
       // Só chega aqui o que o celular da academia escreveu na conversa consigo mesmo.
       console.log(`[pausa] comando "${comando.acao}" enviado pelo celular da academia`)

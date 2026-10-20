@@ -114,6 +114,7 @@ export type Classificacao =
   | { acao: 'eco' } // mensagem enviada pelo próprio bot que voltou
   | { acao: 'humano'; numero: string; jid: string; transferido: boolean } // a equipe respondeu pelo celular ("transferido" = escreveu a palavra)
   | { acao: 'comando'; comando: Comando; jid: string } // o celular da academia escreveu um comando na conversa consigo mesmo
+  | { acao: 'liberar'; numero: string; jid: string } // a equipe escreveu "retomar" na conversa do cliente: devolve ao bot
   | { acao: 'cliente'; msg: MensagemRecebida; jid: string }
 
 /**
@@ -154,6 +155,7 @@ export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>, t
       const comando = interpretarComando(texto)
       return comando ? { acao: 'comando', comando, jid } : { acao: 'ignorar' }
     }
+    if (interpretarComando(texto)?.acao === 'retomar') return { acao: 'liberar', numero: contato.numero, jid }
     return { acao: 'humano', numero: contato.numero, jid, transferido: ehPalavraTransferido(texto) }
   }
 

@@ -303,7 +303,7 @@ describe('conexão Baileys (com socket simulado)', () => {
     const f = sockFalso({ mapa: { [`${LID}@lid`]: `${DONO}:0@s.whatsapp.net` } })
     const d = driver(f)
     const recebidas: MensagemRecebida[] = []
-    d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, comando: () => {} }
+    d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, liberar: () => {}, comando: () => {} }
     await d['tratarInbound']({ key: { remoteJid: `${LID}@lid`, fromMe: false, id: 'M1' }, message: { conversation: 'Quanto custa?' }, pushName: 'Matheus' })
     assert.equal(recebidas[0]!.from, DONO)
     assert.equal(recebidas[0]!.lid, LID)
@@ -315,7 +315,7 @@ describe('conexão Baileys (com socket simulado)', () => {
     for (const opcoes of [{}, { mapaFalha: true }]) {
       const d = driver(sockFalso(opcoes))
       const recebidas: MensagemRecebida[] = []
-      d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, comando: () => {} }
+      d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, liberar: () => {}, comando: () => {} }
       await d['tratarInbound']({ key: { remoteJid: `${LID}@lid`, fromMe: false, id: 'M2' }, message: { conversation: 'oi' } })
       assert.equal(recebidas[0]!.from, LID)
     }
@@ -328,6 +328,7 @@ describe('conexão Baileys (com socket simulado)', () => {
     d['handlers'] = {
       dispatch: () => {},
       humano: () => {},
+      liberar: () => {},
       comando: (c, responder) => {
         comandos.push(c)
         void responder('⏸️ pausado')
@@ -345,16 +346,26 @@ describe('conexão Baileys (com socket simulado)', () => {
     const d = driver(sockFalso())
     const recebidas: MensagemRecebida[] = []
     let comandos = 0
-    d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, comando: () => void comandos++ }
+    d['handlers'] = { dispatch: (m) => void recebidas.push(m), humano: () => {}, liberar: () => {}, comando: () => void comandos++ }
     await d['tratarInbound']({ key: { remoteJid: `${DONO}@s.whatsapp.net`, fromMe: false, id: 'C1' }, message: { conversation: 'pausar' } })
     assert.equal(comandos, 0)
     assert.equal(recebidas[0]!.texto, 'pausar')
   })
 
+  it('"retomar" escrito na conversa de um cliente devolve só aquele cliente ao bot', async () => {
+    const d = driver(sockFalso({ mapa: { [`${LID}@lid`]: `${DONO}:0@s.whatsapp.net` } }))
+    const liberados: string[] = []
+    const silenciados: string[] = []
+    d['handlers'] = { dispatch: () => {}, humano: (n) => void silenciados.push(n), liberar: (n) => void liberados.push(n), comando: () => {} }
+    await d['tratarInbound']({ key: { remoteJid: `${LID}@lid`, fromMe: true, id: 'R1' }, message: { conversation: 'Retomar' } })
+    assert.deepEqual(liberados, [DONO])
+    assert.deepEqual(silenciados, [], 'a palavra devolve; não silencia de novo')
+  })
+
   it('"transferido" escrito no celular da academia numa conversa de cliente silencia só aquele cliente', async () => {
     const d = driver(sockFalso())
     const silenciados: Array<[string, boolean]> = []
-    d['handlers'] = { dispatch: () => {}, humano: (n, _t, transferido) => void silenciados.push([n, transferido]), comando: () => {} }
+    d['handlers'] = { dispatch: () => {}, humano: (n, _t, transferido) => void silenciados.push([n, transferido]), liberar: () => {}, comando: () => {} }
     await d['tratarInbound']({ key: { remoteJid: `${DONO}@s.whatsapp.net`, fromMe: true, id: 'T1' }, message: { conversation: 'Transferido' } })
     await d['tratarInbound']({ key: { remoteJid: `${DONO}@s.whatsapp.net`, fromMe: true, id: 'T2' }, message: { conversation: 'Já te atendo!' } })
     assert.deepEqual(silenciados, [[DONO, true], [DONO, false]])
@@ -364,7 +375,7 @@ describe('conexão Baileys (com socket simulado)', () => {
     const f = sockFalso({ mapa: { [`${LID}@lid`]: `${DONO}:0@s.whatsapp.net` } })
     const d = driver(f)
     const silenciados: string[] = []
-    d['handlers'] = { dispatch: () => {}, humano: (n) => void silenciados.push(n), comando: () => {} }
+    d['handlers'] = { dispatch: () => {}, humano: (n) => void silenciados.push(n), liberar: () => {}, comando: () => {} }
     await d['tratarInbound']({ key: { remoteJid: `${LID}@lid`, fromMe: true, id: 'DOCELULAR' }, message: { conversation: 'Já te respondo' } })
     assert.deepEqual(silenciados, [DONO])
   })

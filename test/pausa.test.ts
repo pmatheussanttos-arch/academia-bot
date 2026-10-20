@@ -150,6 +150,16 @@ describe('assistente pausado (atendimento)', () => {
     assert.equal(t.chamadas.length, 2, 'a segunda mensagem não chegou à IA')
   })
 
+  it('depois de devolvida a conversa, o bot volta a responder aquele cliente na hora', async () => {
+    const t = montar([texto('Voltei! Em que posso ajudar?')], QR)
+    t.store.definirHandoff(CLIENTE, 1, 'Transferido pela equipe.', AGORA.getTime())
+    await tratarMensagem(t.deps, msg())
+    assert.equal(t.enviadas.length, 0, 'calado enquanto a equipe cuida')
+    t.store.liberarHandoff(CLIENTE)
+    await tratarMensagem(t.deps, msg({ texto: 'alô?' }))
+    assert.equal(t.enviadas.length, 1)
+  })
+
   describe('quem NÃO pode pausar', () => {
     it('SEGURANÇA: cliente que digita "pausar" ou "transferido" NÃO pausa nada; é conversa normal', async () => {
       const t = montar([texto('Para pausar o plano, vou chamar a equipe.'), texto('Certo!')], QR)
@@ -245,6 +255,48 @@ describe('botão na página /conectar e rotas /admin/pausa', () => {
     assert.equal(store.pausa(), undefined)
     assert.match(await (await app.request(`/conectar?${T}`)).text(), /Assistente ATIVO/)
     assert.equal(((await (await app.request('/health')).json()) as { pausado: boolean }).pausado, false)
+  })
+
+  it('lista as conversas em que o bot está calado, com botão para devolver; devolver tira da lista', async () => {
+    const { app, store } = montarApp()
+    assert.match(await (await app.request(`/conectar?${T}`)).text(), /Nenhuma\. O bot está respondendo todas/)
+
+    store.definirHandoff('5511977776666', 1, 'Transferido pela equipe.')
+    store.definirHandoff('5511966665555', 1, 'Quer cancelar o plano')
+    store.definirHandoff('277038426505415', 1, 'A equipe respondeu pelo WhatsApp.')
+    const html = await (await app.request(`/conectar?${T}`)).text()
+    assert.match(html, /Conversas com a equipe \(3\)/)
+    assert.match(html, /\+55 \(11\) 97777-6666/)
+    assert.match(html, /\+55 \(11\) 96666-5555/)
+    assert.match(html, /telefone oculto\) 277038426505415/)
+    assert.match(html, /Quer cancelar o plano\. O bot volta às \d\d:\d\d/, 'a pontuação não fica quebrada')
+    assert.equal((html.match(/Devolver ao bot/g) ?? []).length, 3)
+    assert.match(html, /action="\/admin\/liberar\?token=segredo-admin"/)
+
+    const res = await app.request(`/admin/liberar?${T}`, form({ numero: '5511977776666', voltar: 'conectar' }))
+    assert.equal(res.status, 303)
+    assert.equal(res.headers.get('location'), '/conectar?token=segredo-admin')
+    assert.equal(store.emHandoff('5511977776666'), false)
+    assert.equal(store.emHandoff('5511966665555'), true, 'as outras continuam')
+    assert.match(await (await app.request(`/conectar?${T}`)).text(), /Conversas com a equipe \(2\)/)
+  })
+
+  it('o motivo vindo do cliente/IA aparece escapado na página (sem injetar HTML)', async () => {
+    const { app, store } = montarApp()
+    store.definirHandoff('5511977776666', 1, '<img src=x onerror=alert(1)> "oi"')
+    const html = await (await app.request(`/conectar?${T}`)).text()
+    assert.doesNotMatch(html, /<img src=x/)
+    assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/)
+  })
+
+  it('devolver exige a senha e continua aceitando JSON', async () => {
+    const { app, store } = montarApp()
+    store.definirHandoff('5511977776666', 1, 'x')
+    assert.equal((await app.request('/admin/liberar', form({ numero: '5511977776666' }))).status, 401)
+    assert.equal(store.emHandoff('5511977776666'), true)
+    const r = await app.request('/admin/liberar', { method: 'POST', headers: { authorization: 'Bearer segredo-admin', 'content-type': 'application/json' }, body: JSON.stringify({ numero: '+55 11 97777-6666' }) })
+    assert.deepEqual(await r.json(), { liberado: true })
+    assert.equal((await app.request(`/admin/liberar?${T}`, form({}))).status, 400)
   })
 
   it('"pausar até eu reativar" (horas=0) não tem prazo', async () => {

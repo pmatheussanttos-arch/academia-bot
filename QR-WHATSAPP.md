@@ -51,6 +51,11 @@ https://SEU-ENDERECO.onrender.com/conectar?token=SEU_ADMIN_TOKEN
 
 **Uma conversa só:** no celular da academia, escreva a palavra **`transferido`** na conversa do cliente. O bot para de responder só aquele cliente e volta 1 hora depois da última mensagem da equipe nessa conversa. A palavra aparece para o cliente, porque é uma mensagem como outra qualquer. (Qualquer resposta da equipe já silencia o bot naquela conversa; a palavra serve para fazer isso de forma explícita.) Enquanto o bot está calado, as mensagens do cliente **ficam como não lidas** no celular, para a equipe ver.
 
+**Devolver uma conversa ao bot antes da hora:**
+- **Pela página:** na página de conexão, a caixa **Conversas com a equipe** lista os clientes em que o bot está calado (telefone, motivo e a hora em que ele volta sozinho). Toque em **Devolver ao bot** ao lado do cliente. O cliente não vê nada.
+- **Pelo WhatsApp:** no celular da academia, escreva a palavra **`retomar`** (sozinha) na conversa daquele cliente. A palavra aparece para o cliente, como o `transferido`. Para frases como "vou retomar seu treino" nada muda: só vale a palavra sozinha.
+- O bot volta a responder a **próxima mensagem** do cliente; ele não responde mensagens que chegaram enquanto estava calado.
+
 **O assistente todo (todos os clientes):**
 - **Pelo botão:** abra a página de conexão (o mesmo atalho do QR). No topo aparece "Assistente ATIVO" com os botões **Pausar 1 hora**, **Pausar 4 horas** e **Pausar até eu reativar**. Pausado, aparece **Reativar agora**.
 - **Por WhatsApp:** no celular da academia, abra a conversa **com você mesmo** ("Mensagem para você") e envie `pausar` (1 hora), `pausar 5` (5 horas, de 1 a 72), `pausar sempre`, `retomar` ou `status`. O bot responde na mesma conversa. **Só o celular da academia manda nesses comandos**: cliente, número da equipe ou qualquer outro número que escreva "pausar" não pausa nada.

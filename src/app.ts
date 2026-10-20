@@ -5,7 +5,8 @@ import type { EstadoWhatsapp } from './baileys.js'
 import { tratarMensagem, type AtendimentoDeps } from './atendimento.js'
 import type { Config, ConfigWhatsapp } from './config.js'
 import type { FilaPorChave } from './fila.js'
-import { PAUSA_MAX_HORAS, aplicarPausa, descreverPausa } from './pausa.js'
+import type { HandoffAtivo } from './store.js'
+import { PAUSA_MAX_HORAS, aplicarPausa, descreverPausa, quando } from './pausa.js'
 import { carregarInstrucoes, instrucoesIncompletas } from './prompt.js'
 import { extrairMensagens, verificarAssinatura } from './whatsapp.js'
 
@@ -37,14 +38,38 @@ function cartaoPausa(pausa: { ate: number | null } | undefined, token: string, f
     return `<section class="pausa ativo"><div class="titulo">🟢 Assistente ATIVO</div>
       <p>Está respondendo os clientes. Para a equipe atender sozinha por um tempo, pause:</p>
       <div class="botoes">${pausar(1, '⏸️ Pausar 1 hora')}${pausar(4, '⏸️ Pausar 4 horas')}${pausar(0, '⏸️ Pausar até eu reativar')}</div>
-      <p class="dica">Pelo celular da academia: na conversa com você mesmo, envie <b>pausar</b> (ou <b>retomar</b>). Para uma conversa só, escreva <b>transferido</b> nela.</p></section>`
+      <p class="dica">Pelo celular da academia: na conversa com você mesmo, envie <b>pausar</b> (ou <b>retomar</b>). Para uma conversa só, escreva <b>transferido</b> nela (e <b>retomar</b> nela para devolver ao bot).</p></section>`
   }
   return `<section class="pausa pausado"><div class="titulo">⏸️ Assistente PAUSADO</div>
     <p>${esc(descreverPausa(pausa, fuso).replace('⏸️ ', ''))} Ele não está respondendo ninguém e as mensagens ficam não lidas no celular.</p>
     <div class="botoes">${form('<input type="hidden" name="acao" value="retomar">', '<button type="submit">▶️ Reativar agora</button>', 'reativar')}</div></section>`
 }
 
-function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = ''): string {
+/** +55 (11) 99999-8888 para telefone brasileiro; o resto aparece como código (telefone que o WhatsApp esconde). */
+function rotuloContato(chat: string): string {
+  const m = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(chat)
+  return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : `contato ${chat.length > 13 ? '(telefone oculto) ' : ''}${chat}`
+}
+
+/** Conversas em que o bot está calado porque a equipe assumiu, cada uma com um botão para devolvê-la ao bot. */
+function cartaoConversas(conversas: HandoffAtivo[], token: string, fuso: string): string {
+  const acao = `/admin/liberar?token=${encodeURIComponent(token)}`
+  if (conversas.length === 0) {
+    return `<section class="conversas"><div class="titulo">💬 Conversas com a equipe</div><p>Nenhuma. O bot está respondendo todas as conversas.</p></section>`
+  }
+  const linhas = conversas
+    .slice(0, 30)
+    .map(
+      (h) => `<li><div><b>${esc(rotuloContato(h.chat))}</b><br><span>${esc(h.motivo.replace(/[.\s]+$/, ''))}. O bot volta ${esc(quando(h.ate, fuso))}.</span></div>
+        <form method="post" action="${esc(acao)}"><input type="hidden" name="voltar" value="conectar"><input type="hidden" name="numero" value="${esc(h.chat)}"><button class="devolver" type="submit">Devolver ao bot</button></form></li>`,
+    )
+    .join('')
+  return `<section class="conversas"><div class="titulo">💬 Conversas com a equipe (${conversas.length})</div>
+    <p>O bot está calado nestas conversas. Ele volta sozinho 1 hora depois da última mensagem da equipe, ou antes, se você devolver:</p>
+    <ul>${linhas}</ul>${conversas.length > 30 ? '<p class="dica">Mostrando as 30 mais recentes.</p>' : ''}</section>`
+}
+
+function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = ''): string {
   let miolo: string
   if (estado.status === 'conectado') {
     miolo = `<div class="ok">✅ Conectado${estado.numero ? ` como <b>+${esc(estado.numero)}</b>` : ''}</div>
@@ -79,8 +104,16 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .botoes button{font:inherit;font-weight:600;padding:10px 14px;border:0;border-radius:8px;color:#fff;cursor:pointer}
       .botoes button.pausar{background:#c2680a}
       .botoes button.reativar{background:#0a7a2f;font-size:1.05rem;padding:12px 18px}
+      .conversas{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#f1f4f9;border:1px solid #d5dce8}
+      .conversas .titulo{font-weight:700;font-size:1.05rem}
+      .conversas p{margin:8px 0;color:#333}
+      .conversas ul{list-style:none;margin:8px 0 0;padding:0}
+      .conversas li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #d5dce8}
+      .conversas li span{color:#555;font-size:.85rem}
+      .conversas li form{margin:0}
+      .conversas button.devolver{font:inherit;font-weight:600;padding:8px 12px;border:0;border-radius:8px;color:#fff;background:#2459b8;cursor:pointer;white-space:nowrap}
     </style></head><body>
-    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}
+    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}
     </body></html>`
 }
 
@@ -165,7 +198,7 @@ export function criarApp(deps: AppDeps): Hono {
       if (estado.status === 'aguardando_qr' && estado.qr) {
         imagem = await QRCode.toDataURL(estado.qr, { margin: 1, width: 300 }).catch(() => undefined)
       }
-      return c.html(paginaQr(estado, imagem, token!, cartaoPausa(store.pausa(), token!, deps.agenda.fuso)))
+      return c.html(paginaQr(estado, imagem, token!, cartaoPausa(store.pausa(), token!, deps.agenda.fuso), cartaoConversas(store.handoffsAtivos(), token!, deps.agenda.fuso)))
     })
   }
 
@@ -205,11 +238,18 @@ export function criarApp(deps: AppDeps): Hono {
     return c.json({ pausado: pausa !== undefined, ate: pausa?.ate ?? null })
   })
 
+  // Devolve uma conversa ao bot. Aceita JSON ({"numero": "..."}) ou o formulário da página.
   app.post('/admin/liberar', async (c) => {
     if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
-    const { numero } = (await c.req.json().catch(() => ({}))) as { numero?: string }
+    const json = (c.req.header('content-type') ?? '').includes('json')
+    const dados = (json ? await c.req.json().catch(() => ({})) : await c.req.parseBody().catch(() => ({}))) as Record<string, unknown>
+    const numero = typeof dados.numero === 'string' ? dados.numero.replace(/\D/g, '') : ''
     if (!numero) return c.json({ erro: 'informe "numero"' }, 400)
-    return c.json({ liberado: store.liberarHandoff(numero.replace(/\D/g, '')) })
+    const liberado = store.liberarHandoff(numero)
+    if (liberado) console.log(`[pausa] conversa de +${numero} devolvida ao bot pelo painel`)
+    const token = c.req.query('token')
+    if (dados.voltar === 'conectar' && token) return c.redirect(`/conectar?token=${encodeURIComponent(token)}`, 303)
+    return c.json({ liberado })
   })
 
   return app
