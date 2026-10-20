@@ -142,3 +142,12 @@ describe('instruções coerentes com as mensagens automáticas', () => {
     assert.match(REGRAS_FIXAS, /Nunca as contradiga/)
   })
 })
+
+describe('parcerias nas instruções', () => {
+  it('lista todas as parcerias da academia, com os planos aceitos', () => {
+    const instrucoes = readFileSync('./instrucoes.md', 'utf8')
+    for (const parceiro of ['Wellhub', 'Gympass', 'Plano Básico 1', 'TotalPass', 'TP GO', 'TP1', 'Desconto Fácil', 'Asserv', 'Bahamas Mix']) {
+      assert.ok(instrucoes.includes(parceiro), `faltou ${parceiro}`)
+    }
+  })
+})
