@@ -151,3 +151,30 @@ describe('parcerias nas instruções', () => {
     }
   })
 })
+
+describe('log das ferramentas do agente (para diagnosticar a agenda no Log da Render)', () => {
+  it('registra a consulta de horários e o que ela devolveu, sem o nome do cliente', async () => {
+    const t = criarDepsDeAgente(
+      [
+        usarFerramenta('consultar_horarios', { tipo: 'avaliacao_fisica', data: SEGUNDA }, 'toolu_a'),
+        usarFerramenta('solicitar_avaliacao', { tipo: 'avaliacao_fisica', nome: 'Beto da Silva', data: SEGUNDA, horario: '10:00', observacao: 'quer plano VIP', ja_e_aluno: false, plano_vip: false }, 'toolu_b'),
+        texto('ok'),
+      ],
+      QR_COM_PESSOAL,
+    )
+    t.store.adicionarMensagem(CHAT, 'user', 'quero avaliação segunda')
+    const linhas: string[] = []
+    const original = console.log
+    console.log = (...a: unknown[]) => void linhas.push(a.join(' '))
+    try {
+      await responder(t.deps, CHAT, 'Beto')
+    } finally {
+      console.log = original
+    }
+    const agente = linhas.filter((l) => l.startsWith('[agente]'))
+    assert.equal(agente.length, 2)
+    assert.match(agente[0]!, /^\[agente\] consultar_horarios\(avaliacao_fisica, 2026-10-19\) -> Horários da grade em Segunda-feira, 19\/10: 07:00/)
+    assert.match(agente[1]!, /^\[agente\] solicitar_avaliacao\(avaliacao_fisica, 2026-10-19, 10:00\) -> REGISTRADO/)
+    assert.doesNotMatch(agente.join('\n'), /Beto|VIP/, 'nada de nome nem observação do cliente')
+  })
+})

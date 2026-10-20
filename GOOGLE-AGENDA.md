@@ -46,7 +46,7 @@ Contas Google Workspace (de empresa) às vezes bloqueiam a criação de chaves p
 
 Nunca coloque esse conteúdo no GitHub nem mande por conversa.
 
-**6. Teste.** Com `npm run chat` (ele avisa quando o Google está ligado), peça uma avaliação e veja o evento aparecer na agenda de teste. Apague os eventos de teste depois.
+**6. Teste.** Depois do deploy, abra `/health` do bot: deve mostrar `"agenda":"google"`. Do celular de teste, peça uma avaliação pelo WhatsApp e veja o evento "Avaliação — Nome" aparecer na agenda. Apague os eventos de teste depois. Para ver o que o bot fez, abra os **Logs** da Render e procure `agente`: cada consulta aparece como `[agente] consultar_horarios(avaliacao_fisica, 2026-10-22) -> Horários livres…` (ou o erro, se o Google falhar). Se a conversa não mostrar nenhuma linha `[agente]`, o modelo não chamou a ferramenta.
 
 **7. Troque para a agenda real.** Repita os passos 3 e 4 para a agenda das avaliações e troque o `GOOGLE_CALENDAR_ID`.
 
@@ -67,5 +67,6 @@ A agenda passa a guardar **nome e WhatsApp** dos clientes. Todos que têm acesso
 | Log: `Invalid JWT Signature` ou `invalid_grant` | Chave colada errada: copie o arquivo `.json` inteiro de novo |
 | Log: `Not Found` ao listar eventos | `GOOGLE_CALENDAR_ID` errado, ou a agenda não foi compartilhada com o e-mail da conta de serviço |
 | Log: `Forbidden`/`insufficient permissions` | A permissão no compartilhamento não é "Fazer alterações em eventos", ou a Calendar API não foi ativada no projeto |
+| A agenda compartilhada não aparece na lista do robô | Normal: o Google não coloca agendas compartilhadas na lista de uma conta de serviço. O que vale é o `GOOGLE_CALENDAR_ID` estar certo e o compartilhamento ter a permissão "Fazer alterações em eventos" |
 | O bot oferece um horário que a equipe já usou | O evento da equipe está na **outra** agenda (o bot só lê a agenda do `GOOGLE_CALENDAR_ID`) |
 | Os horários parecem deslocados | Fuso horário em `agenda.json` (`fusoHorario`) |

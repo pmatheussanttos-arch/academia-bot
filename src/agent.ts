@@ -152,6 +152,14 @@ function historicoParaMensagens(historico: ReturnType<Store['historico']>): Anth
 const campo = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 const tipoDe = (v: unknown) => (v === 'aula_experimental' || v === 'avaliacao_fisica' ? v : null)
 
+/** Linha de log de cada ferramenta que o modelo usou (sem nome do cliente): mostra se a agenda foi consultada e o que devolveu. */
+export function registroDeFerramenta(bloco: Anthropic.ToolUseBlock, r: Anthropic.ToolResultBlockParam): string {
+  const entrada = (bloco.input ?? {}) as Record<string, unknown>
+  const dados = [entrada.tipo, entrada.data, entrada.horario].filter((v) => typeof v === 'string' && v).join(', ')
+  const saida = (typeof r.content === 'string' ? r.content : '').replace(/\s+/g, ' ').slice(0, 110)
+  return `[agente] ${bloco.name}(${dados}) -> ${r.is_error ? 'erro: ' : ''}${saida}`
+}
+
 function resultado(bloco: Anthropic.ToolUseBlock, texto: string, erro = false): Anthropic.ToolResultBlockParam {
   return { type: 'tool_result', tool_use_id: bloco.id, content: texto, ...(erro ? { is_error: true } : {}) }
 }
@@ -255,7 +263,9 @@ export async function responder(deps: AgenteDeps, chat: string, nome: string | u
       for (const bloco of resposta.content) {
         if (bloco.type !== 'tool_use') continue
         if (bloco.name === 'chamar_humano') encaminhou = true
-        resultados.push(await executarFerramenta(deps, chat, nome, bloco))
+        const r = await executarFerramenta(deps, chat, nome, bloco)
+        console.log(registroDeFerramenta(bloco, r))
+        resultados.push(r)
       }
       mensagens.push({ role: 'user', content: resultados })
       continue
