@@ -335,3 +335,43 @@ describe('botão na página /conectar e rotas /admin/pausa', () => {
     assert.equal(store.pausa(), undefined)
   })
 })
+
+describe('o bot explica no log por que não respondeu', () => {
+  async function comLog(fn: () => Promise<void>): Promise<string[]> {
+    const linhas: string[] = []
+    const original = console.log
+    console.log = (...a: unknown[]) => void linhas.push(a.join(' '))
+    try {
+      await fn()
+    } finally {
+      console.log = original
+    }
+    return linhas
+  }
+  const wa: ClienteWhatsapp = { async enviarTexto() {}, async marcarLida() {} }
+  const montar = (extra: Record<string, string>) => {
+    const base = criarDepsDeAgente([texto('não deveria sair')], extra)
+    return { ...base, deps: { ...base.deps, wa, avisarErro: async () => {} } as AtendimentoDeps }
+  }
+  const msg = (from: string): MensagemRecebida => ({ wamid: `w${Math.random()}`, from, nome: 'Maria', tipo: 'text', texto: 'Oi' })
+
+  it('número de aviso da equipe', async () => {
+    const t = montar(QR)
+    const linhas = await comLog(() => tratarMensagem(t.deps, msg(EQUIPE)))
+    assert.ok(linhas.some((l) => l.includes(`ignorei +${EQUIPE}`) && l.includes('NUMEROS_AVISOS')), linhas.join('\n'))
+  })
+
+  it('assistente pausado', async () => {
+    const t = montar(QR)
+    t.store.pausar(null)
+    const linhas = await comLog(() => tratarMensagem(t.deps, msg(CLIENTE)))
+    assert.ok(linhas.some((l) => l.includes(`+${CLIENTE}`) && l.includes('pausado')), linhas.join('\n'))
+  })
+
+  it('conversa com a equipe', async () => {
+    const t = montar(QR)
+    t.store.definirHandoff(CLIENTE, 1, 'x', AGORA.getTime())
+    const linhas = await comLog(() => tratarMensagem(t.deps, msg(CLIENTE)))
+    assert.ok(linhas.some((l) => l.includes(`+${CLIENTE}`) && l.includes('a equipe está na conversa')), linhas.join('\n'))
+  })
+})

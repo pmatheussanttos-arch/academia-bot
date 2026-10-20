@@ -67,7 +67,10 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
       console.log(`[atendimento] ignorei +${msg.from}${msg.lid ? ` (código interno ${msg.lid})` : ''}: não está em NUMEROS_PERMITIDOS`)
       return
     }
-    if (ehNumeroDaEquipe(cfg, msg.from, msg.lid)) return // quem recebe os avisos é equipe, não cliente
+    if (ehNumeroDaEquipe(cfg, msg.from, msg.lid)) {
+      console.log(`[atendimento] ignorei +${msg.from}: é número de aviso da equipe (NUMEROS_AVISOS), não cliente`)
+      return
+    }
     if (IGNORAR.has(msg.tipo)) return
 
     const ehTexto = msg.tipo === 'text'
@@ -79,8 +82,14 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
     // Pausa geral ou conversa com a equipe: o bot não responde. Também NÃO marca como lida, para a equipe ver a
     // mensagem ainda não lida no celular (e o cliente não ver "lido" sem que ninguém tenha lido).
     const agora = (deps.agora ?? (() => new Date()))().getTime()
-    if (store.pausa(agora)) return
-    if (store.emHandoff(msg.from, agora)) return // a equipe está cuidando
+    if (store.pausa(agora)) {
+      console.log(`[pausa] mensagem de +${msg.from} guardada sem resposta: o assistente está pausado`)
+      return
+    }
+    if (store.emHandoff(msg.from, agora)) {
+      console.log(`[atendimento] sem resposta a +${msg.from}: a equipe está na conversa (o bot volta após 1h sem mensagem humana)`)
+      return // a equipe está cuidando
+    }
 
     wa.marcarLida(msg.wamid).catch(() => undefined)
 

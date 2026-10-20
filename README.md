@@ -105,7 +105,7 @@ Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) c
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 202 testes sem gastar nada |
+| `test/` | `npm test` roda 205 testes sem gastar nada |
 
 ## Próximas fases
 
