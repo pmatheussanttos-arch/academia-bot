@@ -129,3 +129,16 @@ describe('mensagem de transferência editável (mensagens.md)', () => {
     assert.doesNotThrow(() => carregarMensagens(join(pasta, 'm.md')))
   })
 })
+
+describe('instruções coerentes com as mensagens automáticas', () => {
+  it('o instrucoes.md diz que avaliação e primeira mensalidade são pagas no ato (o bot já se desmentiu por falta disso)', () => {
+    const instrucoes = readFileSync('./instrucoes.md', 'utf8')
+    const mensagens = readFileSync('./mensagens.md', 'utf8')
+    assert.match(mensagens, /mensalidade é paga junto com a avaliação/, 'a mensagem automática afirma isso')
+    assert.match(instrucoes, /no ato[^.]*avaliação[^.]*mensalidade do primeiro mês/i, 'então as instruções precisam afirmar também')
+  })
+
+  it('as regras fixas proíbem o bot de desmentir as mensagens das ferramentas', () => {
+    assert.match(REGRAS_FIXAS, /Nunca as contradiga/)
+  })
+})
