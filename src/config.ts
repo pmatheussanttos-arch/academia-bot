@@ -1,3 +1,4 @@
+import { lerProfessores } from './acesso-agenda.js'
 import { lerCredenciaisGoogle } from './google.js'
 import { normalizarNumeroRecepcao } from './recepcao.js'
 
@@ -47,6 +48,8 @@ export interface Config {
    */
   numerosAvisos: string[]
   adminToken?: string
+  /** Nomes que aparecem na lista "quem é você?" da agenda dos professores (AGENDA_PROFESSORES). */
+  professores: string[]
   telegram?: { token: string; chatId: string }
   /** Só é exigido pelo servidor; o modo de teste no terminal (npm run chat) dispensa. */
   whatsapp: Partial<ConfigWhatsapp>
@@ -120,6 +123,7 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
     numerosPermitidos: lista(env.NUMEROS_PERMITIDOS),
     numerosAvisos,
     adminToken: env.ADMIN_TOKEN?.trim() || undefined,
+    professores: lerProfessores(env.AGENDA_PROFESSORES),
     telegram: telegramToken && telegramChat ? { token: telegramToken, chatId: telegramChat } : undefined,
     permitirInstrucoesIncompletas: env.PERMITIR_INSTRUCOES_INCOMPLETAS === '1',
     permitirSemRecepcao: env.PERMITIR_SEM_RECEPCAO === '1',

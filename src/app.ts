@@ -1,11 +1,14 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import QRCode from 'qrcode'
 import type { EstadoWhatsapp } from './baileys.js'
 import { tratarMensagem, type AtendimentoDeps } from './atendimento.js'
 import type { Config, ConfigWhatsapp } from './config.js'
 import type { FilaPorChave } from './fila.js'
 import type { HandoffAtivo } from './store.js'
+import { AcessoAgenda } from './acesso-agenda.js'
+import { paginaAgenda } from './pagina-agenda.js'
+import { ErroPainel, PainelAgenda } from './painel-agenda.js'
 import { PAUSA_MAX_HORAS, aplicarPausa, descreverPausa, quando } from './pausa.js'
 import { carregarInstrucoes, instrucoesIncompletas } from './prompt.js'
 import { extrairMensagens, verificarAssinatura } from './whatsapp.js'
@@ -120,8 +123,14 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
 export function criarApp(deps: AppDeps): Hono {
   const { cfg, store, fila, whatsappCfg } = deps
   const app = new Hono()
+  const acesso = new AcessoAgenda(store, cfg.professores)
+  const painel = new PainelAgenda(deps.agenda, store)
 
   app.onError((err, c) => {
+    if (err instanceof ErroPainel) {
+      if (err.status === 404 && err.codigo === 'sem_acesso') return c.text('Página não encontrada.', 404)
+      return c.json({ erro: err.message, codigo: err.codigo }, err.status as 400)
+    }
     console.error('[http] erro não tratado:', err)
     return c.json({ erro: 'interno' }, 500)
   })
@@ -177,6 +186,7 @@ export function criarApp(deps: AppDeps): Hono {
       whatsapp_status: estado?.status,
       avisos: { whatsapp: cfg.numerosAvisos.length, telegram: Boolean(cfg.telegram) },
       pausado: store.pausa() !== undefined,
+      agenda_professores: acesso.estado().ligada,
     })
   })
 
@@ -201,6 +211,67 @@ export function criarApp(deps: AppDeps): Hono {
       return c.html(paginaQr(estado, imagem, token!, cartaoPausa(store.pausa(), token!, deps.agenda.fuso), cartaoConversas(store.handoffsAtivos(), token!, deps.agenda.fuso)))
     })
   }
+
+  // --- Agenda dos professores: /agenda/<código secreto> (sem login; o endereço é o segredo) ---
+  const paginas = new Map<string, string>() // código -> HTML pronto
+
+  /** Confere o código do endereço. Quem erra (ou a página desligada) recebe 404: nem dá para saber que existe. */
+  const comAcesso = <T>(c: Context, fn: (professorOk: (n: unknown) => string) => T): T => {
+    if (!acesso.liberado(c.req.param('codigo'))) throw new ErroPainel('Página não encontrada.', 404, 'sem_acesso')
+    return fn((n) => {
+      const nome = typeof n === 'string' ? n.trim() : ''
+      if (!acesso.professorValido(nome)) throw new ErroPainel('Escolha o seu nome na lista antes de continuar.', 400, 'professor')
+      return nome
+    })
+  }
+
+  /** A página e as respostas não podem ser guardadas nem indexadas: o endereço é secreto. */
+  const protegerPagina = (c: Context): void => {
+    c.header('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet')
+    c.header('Cache-Control', 'no-store, max-age=0')
+    c.header('Referrer-Policy', 'no-referrer')
+  }
+
+  app.get('/agenda', (c) => c.text('Página não encontrada.', 404))
+
+  app.get('/agenda/:codigo', (c) => {
+    const codigo = c.req.param('codigo')
+    if (!acesso.liberado(codigo)) return c.text('Página não encontrada.', 404)
+    protegerPagina(c)
+    c.header('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'")
+    let html = paginas.get(codigo)
+    if (!html) {
+      html = paginaAgenda(`/agenda/${encodeURIComponent(codigo)}`, cfg.professores)
+      paginas.clear() // o código mudou: a página antiga não serve mais
+      paginas.set(codigo, html)
+    }
+    return c.html(html)
+  })
+
+  app.get('/agenda/:codigo/api/semana', async (c) => {
+    return comAcesso(c, async () => {
+      protegerPagina(c)
+      return c.json(await painel.semana(c.req.query('inicio') ?? ''))
+    })
+  })
+
+  const acaoAgenda = (caminho: string, executar: (dados: Record<string, unknown>, professor: string) => Promise<unknown>) =>
+    app.post(`/agenda/:codigo/api/${caminho}`, async (c) => {
+      return comAcesso(c, async (professorOk) => {
+        protegerPagina(c)
+        const dados = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+        const professor = professorOk(dados.professor)
+        return c.json((await executar(dados, professor)) as object)
+      })
+    })
+
+  const texto = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '')
+
+  acaoAgenda('marcar', (d, professor) =>
+    painel.marcar({ data: texto(d.data, 10), hhmm: texto(d.hhmm, 5), nome: texto(d.nome, 80), whatsapp: texto(d.whatsapp, 30), obs: texto(d.obs, 300), professor }),
+  )
+  acaoAgenda('desmarcar', (d, professor) => painel.desmarcar(texto(d.eventoId, 200), professor))
+  acaoAgenda('remarcar', (d, professor) => painel.remarcar({ eventoId: texto(d.eventoId, 200), data: texto(d.data, 10), hhmm: texto(d.hhmm, 5), professor }))
 
   // --- Administração (só existe se ADMIN_TOKEN estiver definido) ---
   app.get('/admin/handoffs', (c) => {
@@ -250,6 +321,33 @@ export function criarApp(deps: AppDeps): Hono {
     const token = c.req.query('token')
     if (dados.voltar === 'conectar' && token) return c.redirect(`/conectar?token=${encodeURIComponent(token)}`, 303)
     return c.json({ liberado })
+  })
+
+  // Ligar, desligar e trocar o endereço da agenda dos professores (só o dono, com o ADMIN_TOKEN).
+  app.get('/admin/agenda', (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    const e = acesso.estado()
+    return c.json({ ligada: e.ligada, professores: e.professores, caminho: e.codigo ? `/agenda/${e.codigo}` : null, acoes: store.acoesAgenda(100) })
+  })
+
+  app.post('/admin/agenda', async (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    const json = (c.req.header('content-type') ?? '').includes('json')
+    const dados = (json ? await c.req.json().catch(() => ({})) : await c.req.parseBody().catch(() => ({}))) as Record<string, unknown>
+    if (dados.acao === 'ligar' || dados.acao === 'novo_link') {
+      if (cfg.professores.length === 0) return c.json({ erro: 'Defina AGENDA_PROFESSORES com os nomes dos professores antes de ligar a página.' }, 400)
+      const codigo = acesso.ligar()
+      paginas.clear()
+      console.log(`[agenda-professores] página ${dados.acao === 'ligar' ? 'ligada' : 'com endereço novo'} pelo painel`)
+      return c.json({ ligada: true, caminho: `/agenda/${codigo}` })
+    }
+    if (dados.acao === 'desligar') {
+      acesso.desligar()
+      paginas.clear()
+      console.log('[agenda-professores] página desligada pelo painel')
+      return c.json({ ligada: false, caminho: null })
+    }
+    return c.json({ erro: 'informe "acao": "ligar", "novo_link" ou "desligar"' }, 400)
   })
 
   return app

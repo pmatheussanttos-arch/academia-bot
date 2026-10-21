@@ -39,3 +39,6 @@ services:
         sync: false
       - key: ADMIN_TOKEN
         sync: false
+      # Nomes dos professores para a página /agenda (ex.: "Ana, Bia"). Vazio = página desligada.
+      - key: AGENDA_PROFESSORES
+        sync: false

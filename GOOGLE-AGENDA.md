@@ -51,6 +51,10 @@ Nunca coloque esse conteúdo no GitHub nem mande por conversa.
 
 **7. Troque para a agenda real.** Repita os passos 3 e 4 para a agenda das avaliações e troque o `GOOGLE_CALENDAR_ID`.
 
+## Agenda para os professores
+
+Com o Google ligado, a equipe também pode marcar, desmarcar e remarcar avaliações numa página do navegador, na mesma agenda. Veja o **AGENDA-PROFESSORES.md**.
+
 ## Desligar sem apagar nada
 
 Defina `AGENDAMENTO_AUTOMATICO=0`. O bot volta ao modo manual na hora, mantendo as credenciais guardadas.

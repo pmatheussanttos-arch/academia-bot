@@ -164,6 +164,15 @@ if (driver) {
   console.log('📱 WhatsApp: modo Cloud (API oficial da Meta).')
 }
 
+{
+  const codigo = store.lerAjuste('agenda_codigo')
+  if (codigo) {
+    console.log(`👩‍🏫 Agenda dos professores LIGADA em /agenda/${codigo} (${cfg.professores.length} professor(es) na lista).`)
+  } else if (cfg.professores.length > 0) {
+    console.log('👩‍🏫 Agenda dos professores desligada. Para ligar: POST /admin/agenda?token=SEU_ADMIN_TOKEN com {"acao":"ligar"}.')
+  }
+}
+
 const servidor = serve({ fetch: app.fetch, port: cfg.port }, (info) => {
   console.log(`✅ Bot da academia no ar na porta ${info.port} (modelo ${cfg.model}, esforço ${cfg.effort}).`)
 })

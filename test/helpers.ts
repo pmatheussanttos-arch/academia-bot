@@ -6,7 +6,7 @@ import type { AgenteDeps, ClienteClaude } from '../src/agent.js'
 import { carregarAgenda, epochLocal } from '../src/agenda.js'
 import { ServicoAgenda } from '../src/agendamento.js'
 import { carregarConfig, type Config } from '../src/config.js'
-import type { EventoAgenda, GoogleAgendaApi, NovoEvento } from '../src/google.js'
+import type { EventoAgenda, GoogleAgendaApi, MudancaEvento, NovoEvento } from '../src/google.js'
 import { carregarMensagens } from '../src/mensagens.js'
 import { Store } from '../src/store.js'
 
@@ -85,13 +85,16 @@ export function claudeFalso(respostas: Array<RespostaFalsa | Error>) {
 export class GoogleFalso implements GoogleAgendaApi {
   eventos: EventoAgenda[] = []
   criados: Array<{ agendaId: string; evento: NovoEvento; id: string }> = []
-  chamadas = { listar: 0, criar: 0, obter: 0 }
+  chamadas = { listar: 0, criar: 0, obter: 0, remover: 0, mover: 0 }
+  /** Atraso artificial (ms) em listar/criar, para testar duas pessoas ao mesmo tempo. */
+  atraso = 0
   falhar = false
   private contador = 0
 
   async listarEventos(_agendaId: string, desde: number, ate: number): Promise<EventoAgenda[]> {
     this.chamadas.listar++
     if (this.falhar) throw new Error('google fora do ar')
+    if (this.atraso) await new Promise((r) => setTimeout(r, this.atraso))
     return this.eventos.filter((e) => e.diaInteiro || (e.inicio! < ate && e.fim! > desde))
   }
 
@@ -99,9 +102,38 @@ export class GoogleFalso implements GoogleAgendaApi {
     this.chamadas.criar++
     if (this.falhar) throw new Error('google fora do ar')
     const id = `ev${++this.contador}`
-    this.eventos.push({ id, titulo: evento.titulo, ocupa: true, inicio: evento.inicio, fim: evento.fim })
+    if (this.atraso) await new Promise((r) => setTimeout(r, this.atraso))
+    this.eventos.push({
+      id,
+      titulo: evento.titulo,
+      ocupa: true,
+      inicio: evento.inicio,
+      fim: evento.fim,
+      descricao: evento.descricao,
+      ...(evento.privado ? { privado: { ...evento.privado } } : {}),
+    })
     this.criados.push({ agendaId, evento, id })
     return id
+  }
+
+  async removerEvento(_agendaId: string, eventoId: string): Promise<void> {
+    this.chamadas.remover++
+    if (this.falhar) throw new Error('google fora do ar')
+    this.eventos = this.eventos.filter((e) => e.id !== eventoId)
+  }
+
+  movidos: Array<{ eventoId: string; mudanca: MudancaEvento }> = []
+
+  async moverEvento(_agendaId: string, eventoId: string, m: MudancaEvento): Promise<void> {
+    this.chamadas.mover++
+    if (this.falhar) throw new Error('google fora do ar')
+    const e = this.eventos.find((x) => x.id === eventoId)
+    if (!e) throw new Error('evento não existe')
+    e.inicio = m.inicio
+    e.fim = m.fim
+    if (m.descricao !== undefined) e.descricao = m.descricao
+    if (m.privado) e.privado = { ...e.privado, ...m.privado }
+    this.movidos.push({ eventoId, mudanca: m })
   }
 
   async obterEvento(_agendaId: string, eventoId: string): Promise<EventoAgenda | null> {

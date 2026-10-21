@@ -10,6 +10,10 @@ export interface EventoAgenda {
   diaInteiro?: { de: string; ate: string }
   inicio?: number
   fim?: number
+  /** Texto da descrição (o bot e o painel gravam o WhatsApp do cliente aqui). */
+  descricao?: string
+  /** Marcas internas gravadas na criação (origem, quem marcou, WhatsApp), invisíveis na tela do Google Agenda. */
+  privado?: Record<string, string>
 }
 
 export interface NovoEvento {
@@ -28,6 +32,19 @@ export interface GoogleAgendaApi {
   criarEvento(agendaId: string, evento: NovoEvento): Promise<string>
   /** Devolve null se o evento foi apagado ou cancelado. */
   obterEvento(agendaId: string, eventoId: string): Promise<EventoAgenda | null>
+  /** Apaga o evento. Não dá erro se ele já não existir. */
+  removerEvento(agendaId: string, eventoId: string): Promise<void>
+  /** Muda o horário de um evento, mantendo o resto (título, WhatsApp...). `descricao` e `privado` só mexem se informados. */
+  moverEvento(agendaId: string, eventoId: string, mudanca: MudancaEvento): Promise<void>
+}
+
+export interface MudancaEvento {
+  inicio: number
+  fim: number
+  fuso: string
+  descricao?: string
+  /** Marcas a acrescentar às que o evento já tem (as outras continuam). */
+  privado?: Record<string, string>
 }
 
 export class ErroGoogle extends Error {
@@ -43,14 +60,22 @@ interface EventoBruto {
   id?: string
   status?: string
   summary?: string
+  description?: string
   transparency?: string
+  extendedProperties?: { private?: Record<string, string> }
   start?: { dateTime?: string; date?: string }
   end?: { dateTime?: string; date?: string }
 }
 
 export function normalizarEvento(e: EventoBruto): EventoAgenda {
   const ocupa = e.status !== 'cancelled' && e.transparency !== 'transparent'
-  const base = { id: e.id ?? '', titulo: e.summary ?? '', ocupa }
+  const base = {
+    id: e.id ?? '',
+    titulo: e.summary ?? '',
+    ocupa,
+    ...(e.description ? { descricao: e.description } : {}),
+    ...(e.extendedProperties?.private ? { privado: e.extendedProperties.private } : {}),
+  }
   if (e.start?.date && e.end?.date) return { ...base, diaInteiro: { de: e.start.date, ate: e.end.date } }
   const inicio = e.start?.dateTime ? Date.parse(e.start.dateTime) : NaN
   const fim = e.end?.dateTime ? Date.parse(e.end.dateTime) : NaN
@@ -179,6 +204,22 @@ export class ClienteGoogleAgenda implements GoogleAgendaApi {
     const dados = (await res.json()) as { id?: string }
     if (!dados.id) throw new ErroGoogle('Google Agenda não devolveu o ID do evento criado.', 502)
     return dados.id
+  }
+
+  async removerEvento(agendaId: string, eventoId: string): Promise<void> {
+    const res = await this.requisitar('DELETE', `${URL_API}/${encodeURIComponent(agendaId)}/events/${encodeURIComponent(eventoId)}`)
+    if (res.status === 404 || res.status === 410) return // já não existe: o objetivo (horário livre) está cumprido
+    if (!res.ok) await this.falhar(res, 'apagar evento')
+  }
+
+  async moverEvento(agendaId: string, eventoId: string, m: MudancaEvento): Promise<void> {
+    const res = await this.requisitar('PATCH', `${URL_API}/${encodeURIComponent(agendaId)}/events/${encodeURIComponent(eventoId)}`, {
+      start: { dateTime: new Date(m.inicio).toISOString(), timeZone: m.fuso },
+      end: { dateTime: new Date(m.fim).toISOString(), timeZone: m.fuso },
+      ...(m.descricao !== undefined ? { description: m.descricao } : {}),
+      ...(m.privado ? { extendedProperties: { private: m.privado } } : {}),
+    })
+    if (!res.ok) await this.falhar(res, 'mover evento')
   }
 
   async obterEvento(agendaId: string, eventoId: string): Promise<EventoAgenda | null> {

@@ -67,29 +67,42 @@ export class ServicoAgenda {
     return this.googleAtivo() ? 'google' : 'manual'
   }
 
+  /** Regras da grade (agenda.json). O painel dos professores usa as mesmas. */
+  get regras(): Agenda {
+    return this.d.agenda
+  }
+
+  /** Google Agenda e ID da agenda, quando o agendamento automático está ligado. O painel dos professores usa a mesma agenda. */
+  get googleAgenda(): { api: GoogleAgendaApi; agendaId: string } | undefined {
+    return this.googleAtivo() ? { api: this.d.google!, agendaId: this.d.agendaId! } : undefined
+  }
+
   private googleAtivo(): boolean {
     return this.d.automatico && this.d.google !== undefined && this.d.agendaId !== undefined
   }
 
-  private agora(): Date {
+  agora(): Date {
     return (this.d.agora ?? (() => new Date()))()
   }
 
-  /** Duas pessoas pedindo o mesmo horário ao mesmo tempo: uma de cada vez, para a segunda ver o horário já ocupado. */
-  private exclusivo<T>(tarefa: () => Promise<T>): Promise<T> {
+  /**
+   * Duas pessoas pedindo o mesmo horário ao mesmo tempo: uma de cada vez, para a segunda ver o horário já ocupado.
+   * O painel dos professores usa a MESMA trava, para o assistente e os professores também não colidirem.
+   */
+  exclusivo<T>(tarefa: () => Promise<T>): Promise<T> {
     const r = this.trava.then(tarefa, tarefa)
     this.trava = r.catch(() => undefined)
     return r
   }
 
-  private ocupado(slot: Slot, eventos: EventoAgenda[]): boolean {
+  ocupado(slot: Slot, eventos: EventoAgenda[]): boolean {
     const fim = slot.inicio + this.d.agenda.duracaoMin * 60_000
     const sobrepostos = eventos.filter((e) => e.ocupa && e.inicio !== undefined && e.fim !== undefined && e.inicio < fim && e.fim > slot.inicio)
     return sobrepostos.length >= this.d.agenda.capacidade
   }
 
   /** Dia marcado como fechado na agenda: um evento de dia inteiro com "fechado" no título. */
-  private diaFechado(dataISO: string, eventos: EventoAgenda[]): boolean {
+  diaFechado(dataISO: string, eventos: EventoAgenda[]): boolean {
     return eventos.some((e) => e.ocupa && e.diaInteiro && e.diaInteiro.de <= dataISO && dataISO < e.diaInteiro.ate && /fechad/i.test(e.titulo))
   }
 
