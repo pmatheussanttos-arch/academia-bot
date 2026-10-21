@@ -78,7 +78,7 @@ Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) c
 
 ## Agenda para os professores (página no navegador)
 
-Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar avaliações** numa página do próprio bot, na mesma agenda do Google. Sem login: o acesso é um endereço secreto que você gera e compartilha no grupo da equipe. Passo a passo no **AGENDA-PROFESSORES.md**.
+Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar avaliações** numa página do próprio bot, na mesma agenda do Google. Sem login: o acesso é um endereço secreto que você gera com um toque na página de conexão e compartilha no grupo da equipe. Passo a passo no **AGENDA-PROFESSORES.md**.
 
 ## Operação do dia a dia
 
@@ -110,7 +110,7 @@ Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar a
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 259 testes sem gastar nada |
+| `test/` | `npm test` roda 265 testes sem gastar nada |
 
 ## Próximas fases
 

@@ -236,3 +236,75 @@ describe('rotas da agenda', () => {
     assert.equal(store.agendamentoAtivo('5511977776666', AGORA.getTime())!.inicio, epochLocal(SEGUNDA, '10:00', FUSO))
   })
 })
+
+describe('botões da agenda na página /conectar (o dono não precisa de comando)', () => {
+  const T = 'token=segredo-admin'
+  const form = (corpo: Record<string, string>) => ({ method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(corpo).toString() })
+
+  it('desligada: mostra o botão de gerar o link e a lista de professores', async () => {
+    const { app } = montar()
+    const html = await (await app.request(`/conectar?${T}`)).text()
+    assert.match(html, /Agenda dos professores/)
+    assert.match(html, /Gerar o link da agenda/)
+    assert.match(html, /Ana, Bia, Carlos/)
+    assert.match(html, /action="\/admin\/agenda\?token=segredo-admin"/)
+    assert.doesNotMatch(html, /Desligar<\/button>/)
+  })
+
+  it('um clique gera o link, que aparece pronto para copiar com o endereço completo', async () => {
+    const { app, store } = montar()
+    const res = await app.request(`/admin/agenda?${T}`, form({ acao: 'ligar', voltar: 'conectar' }))
+    assert.equal(res.status, 303)
+    assert.equal(res.headers.get('location'), '/conectar?token=segredo-admin')
+    const codigo = store.lerAjuste('agenda_codigo')!
+
+    const html = await (await app.request(`http://meu-bot.onrender.com/conectar?${T}`)).text()
+    assert.match(html, /Agenda dos professores: LIGADA/)
+    assert.match(html, new RegExp(`value="http://meu-bot\\.onrender\\.com/agenda/${codigo}"`), 'o endereço completo vem pronto')
+    assert.match(html, /Abrir a agenda/)
+    assert.match(html, /Gerar outro link/)
+    assert.match(html, /Quem tiver o link entra sem senha/)
+  })
+
+  it('"gerar outro link" troca o endereço; "desligar" volta ao estado inicial', async () => {
+    const { app, store } = montar()
+    await app.request(`/admin/agenda?${T}`, form({ acao: 'ligar', voltar: 'conectar' }))
+    const antigo = store.lerAjuste('agenda_codigo')!
+    await app.request(`/admin/agenda?${T}`, form({ acao: 'novo_link', voltar: 'conectar' }))
+    const novo = store.lerAjuste('agenda_codigo')!
+    assert.notEqual(novo, antigo)
+    assert.equal((await app.request(`/agenda/${antigo}`)).status, 404)
+
+    await app.request(`/admin/agenda?${T}`, form({ acao: 'desligar', voltar: 'conectar' }))
+    assert.equal(store.lerAjuste('agenda_codigo'), undefined)
+    assert.match(await (await app.request(`/conectar?${T}`)).text(), /Gerar o link da agenda/)
+  })
+
+  it('sem AGENDA_PROFESSORES, a página explica o que fazer em vez de oferecer o botão', async () => {
+    const { app, store } = montar({ AGENDA_PROFESSORES: '' })
+    const html = await (await app.request(`/conectar?${T}`)).text()
+    assert.match(html, /cadastre na Render a variável <b>AGENDA_PROFESSORES<\/b>/)
+    assert.doesNotMatch(html, /Gerar o link da agenda/)
+    await app.request(`/admin/agenda?${T}`, form({ acao: 'ligar', voltar: 'conectar' }))
+    assert.equal(store.lerAjuste('agenda_codigo'), undefined, 'não liga sem a lista')
+  })
+
+  it('SEGURANÇA: sem o token certo ninguém vê nem gera o link pela página', async () => {
+    const { app, store } = montar()
+    assert.equal((await app.request('/conectar')).status, 401)
+    assert.equal((await app.request('/conectar?token=errado')).status, 401)
+    assert.equal((await app.request('/admin/agenda?token=errado', form({ acao: 'ligar', voltar: 'conectar' }))).status, 401)
+    assert.equal(store.lerAjuste('agenda_codigo'), undefined)
+  })
+})
+
+describe('os botões da página têm cor própria (nada de texto branco no branco)', () => {
+  it('a folha de estilo define fundo para "leve" e "perigo"', async () => {
+    const { app } = montar()
+    await app.request('/admin/agenda', { method: 'POST', headers: admin, body: JSON.stringify({ acao: 'ligar' }) })
+    const html = await (await app.request('/conectar?token=segredo-admin')).text()
+    assert.match(html, /\.botoes button\.leve\{background:#fff;color:#222/, 'botão claro tem texto escuro')
+    assert.match(html, /\.botoes button\.perigo\{background:#c0392b\}/, 'botão de perigo tem fundo vermelho')
+    assert.match(html, /\.botoes button\{[^}]*min-height:44px/, 'botões com 44px para o dedo')
+  })
+})

@@ -72,7 +72,33 @@ function cartaoConversas(conversas: HandoffAtivo[], token: string, fuso: string)
     <ul>${linhas}</ul>${conversas.length > 30 ? '<p class="dica">Mostrando as 30 mais recentes.</p>' : ''}</section>`
 }
 
-function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = ''): string {
+/** Botões para ligar, copiar, trocar e desligar o endereço da agenda dos professores. */
+function cartaoAgendaProfessores(estado: { ligada: boolean; codigo?: string; professores: string[] }, token: string, origem: string): string {
+  const acao = `/admin/agenda?token=${encodeURIComponent(token)}`
+  const form = (campos: string, rotulo: string, classe: string) =>
+    `<form method="post" action="${esc(acao)}"><input type="hidden" name="voltar" value="conectar">${campos}<button class="${classe}" type="submit">${rotulo}</button></form>`
+  const botao = (valor: string, rotulo: string, classe: string) => form(`<input type="hidden" name="acao" value="${valor}">`, rotulo, classe)
+
+  if (estado.professores.length === 0) {
+    return `<section class="profs"><div class="titulo">👩‍🏫 Agenda dos professores</div>
+      <p>Para usar, cadastre na Render a variável <b>AGENDA_PROFESSORES</b> com os nomes da equipe, separados por vírgula (ex.: <i>Ana, Bia, Carlos</i>). Depois volte aqui.</p></section>`
+  }
+  if (!estado.ligada) {
+    return `<section class="profs"><div class="titulo">👩‍🏫 Agenda dos professores</div>
+      <p>Página onde a equipe marca, desmarca e remarca avaliações. Hoje está <b>desligada</b>.</p>
+      <p class="dica">Professores na lista: ${esc(estado.professores.join(', '))}</p>
+      <div class="botoes">${botao('ligar', '🔗 Gerar o link da agenda', 'ligar')}</div></section>`
+  }
+  const link = `${origem}/agenda/${estado.codigo}`
+  return `<section class="profs ligada"><div class="titulo">👩‍🏫 Agenda dos professores: LIGADA</div>
+    <p>Mande este endereço no grupo privado da equipe (toque para selecionar e copiar):</p>
+    <input class="link" type="text" readonly value="${esc(link)}" onclick="this.select()">
+    <div class="botoes"><a class="abrir" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Abrir a agenda</a>
+      ${botao('novo_link', '♻️ Gerar outro link', 'leve')}${botao('desligar', 'Desligar', 'perigo')}</div>
+    <p class="dica">Quem tiver o link entra sem senha: mande só para a equipe. "Gerar outro link" derruba o endereço antigo na hora.</p></section>`
+}
+
+function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = '', profsHtml = ''): string {
   let miolo: string
   if (estado.status === 'conectado') {
     miolo = `<div class="ok">✅ Conectado${estado.numero ? ` como <b>+${esc(estado.numero)}</b>` : ''}</div>
@@ -104,7 +130,9 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .pausa .dica{color:#666;font-size:.85rem}
       .botoes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
       .botoes form{margin:0}
-      .botoes button{font:inherit;font-weight:600;padding:10px 14px;border:0;border-radius:8px;color:#fff;cursor:pointer}
+      .botoes button{font:inherit;font-weight:600;padding:12px 14px;min-height:44px;border:0;border-radius:8px;color:#fff;cursor:pointer}
+      .botoes button.leve{background:#fff;color:#222;border:1px solid #bcc5d2}
+      .botoes button.perigo{background:#c0392b}
       .botoes button.pausar{background:#c2680a}
       .botoes button.reativar{background:#0a7a2f;font-size:1.05rem;padding:12px 18px}
       .conversas{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#f1f4f9;border:1px solid #d5dce8}
@@ -115,8 +143,16 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .conversas li span{color:#555;font-size:.85rem}
       .conversas li form{margin:0}
       .conversas button.devolver{font:inherit;font-weight:600;padding:8px 12px;border:0;border-radius:8px;color:#fff;background:#2459b8;cursor:pointer;white-space:nowrap}
+      .profs{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#eef3ff;border:1px solid #c3d2f5}
+      .profs.ligada{background:#eaf7ee;border-color:#b7e2c3}
+      .profs .titulo{font-weight:700;font-size:1.05rem}
+      .profs p{margin:8px 0;color:#333}
+      .profs .dica{color:#666;font-size:.85rem}
+      .profs .link{width:100%;font:inherit;font-size:.9rem;padding:10px;border:1px solid #c3d2f5;border-radius:8px;background:#fff;color:#222}
+      .profs .botoes button.ligar{background:#2459b8}
+      .profs .botoes .abrir{display:inline-flex;align-items:center;font-weight:600;padding:12px 14px;min-height:44px;border-radius:8px;background:#0a7a2f;color:#fff;text-decoration:none}
     </style></head><body>
-    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}
+    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}${profsHtml}
     </body></html>`
 }
 
@@ -208,7 +244,17 @@ export function criarApp(deps: AppDeps): Hono {
       if (estado.status === 'aguardando_qr' && estado.qr) {
         imagem = await QRCode.toDataURL(estado.qr, { margin: 1, width: 300 }).catch(() => undefined)
       }
-      return c.html(paginaQr(estado, imagem, token!, cartaoPausa(store.pausa(), token!, deps.agenda.fuso), cartaoConversas(store.handoffsAtivos(), token!, deps.agenda.fuso)))
+      const origem = new URL(c.req.url).origin
+      return c.html(
+        paginaQr(
+          estado,
+          imagem,
+          token!,
+          cartaoPausa(store.pausa(), token!, deps.agenda.fuso),
+          cartaoConversas(store.handoffsAtivos(), token!, deps.agenda.fuso),
+          cartaoAgendaProfessores(acesso.estado(), token!, origem),
+        ),
+      )
     })
   }
 
@@ -335,16 +381,21 @@ export function criarApp(deps: AppDeps): Hono {
     const json = (c.req.header('content-type') ?? '').includes('json')
     const dados = (json ? await c.req.json().catch(() => ({})) : await c.req.parseBody().catch(() => ({}))) as Record<string, unknown>
     if (dados.acao === 'ligar' || dados.acao === 'novo_link') {
-      if (cfg.professores.length === 0) return c.json({ erro: 'Defina AGENDA_PROFESSORES com os nomes dos professores antes de ligar a página.' }, 400)
+      if (cfg.professores.length === 0) {
+      if (dados.voltar === 'conectar' && c.req.query('token')) return c.redirect(`/conectar?token=${encodeURIComponent(c.req.query('token')!)}`, 303)
+      return c.json({ erro: 'Defina AGENDA_PROFESSORES com os nomes dos professores antes de ligar a página.' }, 400)
+    }
       const codigo = acesso.ligar()
       paginas.clear()
       console.log(`[agenda-professores] página ${dados.acao === 'ligar' ? 'ligada' : 'com endereço novo'} pelo painel`)
+      if (dados.voltar === 'conectar' && c.req.query('token')) return c.redirect(`/conectar?token=${encodeURIComponent(c.req.query('token')!)}`, 303)
       return c.json({ ligada: true, caminho: `/agenda/${codigo}` })
     }
     if (dados.acao === 'desligar') {
       acesso.desligar()
       paginas.clear()
       console.log('[agenda-professores] página desligada pelo painel')
+      if (dados.voltar === 'conectar' && c.req.query('token')) return c.redirect(`/conectar?token=${encodeURIComponent(c.req.query('token')!)}`, 303)
       return c.json({ ligada: false, caminho: null })
     }
     return c.json({ erro: 'informe "acao": "ligar", "novo_link" ou "desligar"' }, 400)

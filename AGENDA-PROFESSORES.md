@@ -16,19 +16,13 @@ Não tem login. A página mora num **endereço secreto**, que você gera e compa
 
 Esses nomes viram a lista "Quem é você?" da página. É assim que fica registrado quem marcou ou desmarcou cada avaliação. Salve e espere ficar **Live**.
 
-**2. Gere o endereço secreto.** Abra o **Logs** da Render e, no seu computador, peça ao bot para ligar a página. O jeito mais simples é pelo próprio navegador: entre no endereço abaixo trocando `SEU-ENDERECO` e `SEU_ADMIN_TOKEN`, e use um app que faça um "POST"… mas, se preferir não mexer nisso, **me peça que eu faço o pedido por você** e te devolvo o endereço.
+**2. Gere o endereço secreto com um toque.** Abra o atalho da área de trabalho (a página de conexão do WhatsApp, `/conectar?token=SEU_ADMIN_TOKEN`). No fim dela aparece o cartão **"Agenda dos professores"**. Toque em **"🔗 Gerar o link da agenda"**. O endereço completo aparece numa caixinha pronta para copiar.
 
-Para quem quiser fazer sozinho, pelo terminal:
+Quem preferir o terminal pode fazer o mesmo pedido assim:
 
 ```
 curl -X POST "https://SEU-ENDERECO.onrender.com/admin/agenda?token=SEU_ADMIN_TOKEN" \
   -H "content-type: application/json" -d '{"acao":"ligar"}'
-```
-
-A resposta traz o caminho, algo como `/agenda/AwKD0IsADVBETrEM6LRLZbxU0_`. O endereço completo da página é:
-
-```
-https://SEU-ENDERECO.onrender.com/agenda/AwKD0IsADVBETrEM6LRLZbxU0_
 ```
 
 **3. Mande esse endereço no grupo privado da equipe.** Peça para salvarem como favorito no celular.
@@ -65,17 +59,12 @@ Também aparece no **Logs** da Render, em linhas que começam com `[agenda-profe
 
 ## Trocar o endereço ou desligar
 
-- **Alguém saiu da equipe, ou o link vazou:** gere um endereço novo. O antigo para de funcionar na hora.
+Tudo pelo mesmo cartão da página de conexão:
 
-  ```
-  curl -X POST ".../admin/agenda?token=SEU_ADMIN_TOKEN" -H "content-type: application/json" -d '{"acao":"novo_link"}'
-  ```
+- **Alguém saiu da equipe, ou o link vazou:** toque em **"♻️ Gerar outro link"**. O endereço antigo para de funcionar na hora.
+- **Desligar a página de vez:** toque em **"Desligar"**.
 
-- **Desligar a página de vez:**
-
-  ```
-  curl -X POST ".../admin/agenda?token=SEU_ADMIN_TOKEN" -H "content-type: application/json" -d '{"acao":"desligar"}'
-  ```
+(Pelo terminal, os mesmos pedidos com `{"acao":"novo_link"}` e `{"acao":"desligar"}`.)
 
   Depois disso, qualquer endereço de agenda responde "Página não encontrada". O assistente continua funcionando normalmente.
 
