@@ -20,8 +20,10 @@ export interface EstadoWhatsapp {
   qr?: string
   /** Número conectado, quando já pareado. */
   numero?: string
-  /** Última mudança de status. */
+  /** Última mudança de status (muda a cada QR novo, por exemplo). */
   desde: number
+  /** Desde quando NÃO está conectado. Não é reiniciado por um QR novo: serve para o aviso de queda. */
+  foraDoArDesde?: number
   /** Mensagem curta de diagnóstico para a tela. */
   detalhe?: string
 }
@@ -66,7 +68,7 @@ const LIMITE_IDS = 400
  */
 export class DriverBaileys implements ClienteWhatsapp {
   private sock?: WASocket
-  private estadoAtual: EstadoWhatsapp = { status: 'iniciando', desde: Date.now() }
+  private estadoAtual: EstadoWhatsapp = { status: 'iniciando', desde: Date.now(), foraDoArDesde: Date.now() }
   private handlers?: HandlersBaileys
   private readonly authDir: string
   /** ids de mensagens enviadas pelo bot, para não reagir ao próprio eco. */
@@ -91,7 +93,11 @@ export class DriverBaileys implements ClienteWhatsapp {
   }
 
   private mudarEstado(parcial: Partial<EstadoWhatsapp>): void {
-    this.estadoAtual = { ...this.estadoAtual, ...parcial, desde: Date.now() }
+    const agora = Date.now()
+    const status = parcial.status ?? this.estadoAtual.status
+    // Conectou: zera o relógio da queda. Caiu: começa a contar, e um QR novo não reinicia a contagem.
+    const foraDoArDesde = status === 'conectado' ? undefined : (this.estadoAtual.foraDoArDesde ?? agora)
+    this.estadoAtual = { ...this.estadoAtual, ...parcial, desde: agora, foraDoArDesde }
     this.opts.onEstado?.(this.estadoAtual)
   }
 

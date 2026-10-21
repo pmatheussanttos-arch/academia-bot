@@ -80,6 +80,10 @@ Quando o cliente pede uma pessoa, solicita uma avaliação ou aula, ou manda um 
 - **A página do QR dá controle total do seu WhatsApp.** Nunca compartilhe o endereço com o `token`. Se achar que alguém viu, troque o `ADMIN_TOKEN` na Render.
 - **Para desconectar:** no celular, em Aparelhos conectados, remova o aparelho do bot.
 
+## Ser avisado se a conexão cair
+
+Ninguém é avisado sozinho quando o WhatsApp desconecta, e o bot fica mudo até alguém escanear o QR de novo. Cadastre o endereço `/status/whatsapp` num monitor gratuito e receba um e-mail: passo a passo no **AVISO-QUEDA.md**. O endereço pronto para copiar está no fim da própria página de conexão.
+
 ## Se o QR não aparecer
 
 - Confira que `WHATSAPP_MODO` está como `qr` e que o serviço está **Live**.

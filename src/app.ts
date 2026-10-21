@@ -10,6 +10,7 @@ import { AcessoAgenda } from './acesso-agenda.js'
 import { paginaAgenda } from './pagina-agenda.js'
 import { ErroPainel, PainelAgenda } from './painel-agenda.js'
 import { PAUSA_MAX_HORAS, aplicarPausa, descreverPausa, quando } from './pausa.js'
+import { calcularStatus } from './status.js'
 import { carregarInstrucoes, instrucoesIncompletas } from './prompt.js'
 import { extrairMensagens, verificarAssinatura } from './whatsapp.js'
 
@@ -98,7 +99,16 @@ function cartaoAgendaProfessores(estado: { ligada: boolean; codigo?: string; pro
     <p class="dica">Quem tiver o link entra sem senha: mande só para a equipe. "Gerar outro link" derruba o endereço antigo na hora.</p></section>`
 }
 
-function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = '', profsHtml = ''): string {
+/** Cartão com o endereço de status, para o dono colar num monitor gratuito e receber e-mail se o WhatsApp cair. */
+function cartaoMonitor(origem: string, toleranciaMin: number): string {
+  const url = `${origem}/status/whatsapp`
+  return `<section class="monitor"><div class="titulo">🔔 Aviso se o WhatsApp cair</div>
+    <p>Hoje ninguém é avisado quando a conexão cai. Cadastre este endereço num monitor gratuito (UptimeRobot, por exemplo) para receber um e-mail:</p>
+    <input class="link" type="text" readonly value="${esc(url)}" onclick="this.select()">
+    <p class="dica">Ele responde "tudo certo" enquanto o WhatsApp está conectado e acusa erro quando está fora do ar há mais de ${toleranciaMin} minutos (quedas curtas e reinícios não alarmam). Passo a passo no arquivo AVISO-QUEDA.md.</p></section>`
+}
+
+function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = '', profsHtml = '', monitorHtml = ''): string {
   let miolo: string
   if (estado.status === 'conectado') {
     miolo = `<div class="ok">✅ Conectado${estado.numero ? ` como <b>+${esc(estado.numero)}</b>` : ''}</div>
@@ -150,9 +160,14 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .profs .dica{color:#666;font-size:.85rem}
       .profs .link{width:100%;font:inherit;font-size:.9rem;padding:10px;border:1px solid #c3d2f5;border-radius:8px;background:#fff;color:#222}
       .profs .botoes button.ligar{background:#2459b8}
+      .monitor{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#fff8e8;border:1px solid #f0d9a8}
+      .monitor .titulo{font-weight:700;font-size:1.05rem}
+      .monitor p{margin:8px 0;color:#333}
+      .monitor .dica{color:#666;font-size:.85rem}
+      .monitor .link{width:100%;font:inherit;font-size:.9rem;padding:10px;border:1px solid #f0d9a8;border-radius:8px;background:#fff;color:#222}
       .profs .botoes .abrir{display:inline-flex;align-items:center;font-weight:600;padding:12px 14px;min-height:44px;border-radius:8px;background:#0a7a2f;color:#fff;text-decoration:none}
     </style></head><body>
-    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}${profsHtml}
+    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}${profsHtml}${monitorHtml}
     </body></html>`
 }
 
@@ -202,6 +217,18 @@ export function criarApp(deps: AppDeps): Hono {
       return c.text('ok', 200)
     })
   }
+
+  /**
+   * Página de status para um monitor externo (avisa o dono por e-mail quando o WhatsApp cai).
+   * Responde 503 quando está fora do ar há mais tempo do que a tolerância. Fica fora do /health
+   * de propósito: a Render usa o /health e reiniciaria o serviço sem parar.
+   */
+  app.get('/status/whatsapp', (c) => {
+    const s = calcularStatus(deps.whatsappEstado?.(), Date.now(), cfg.toleranciaQuedaMin)
+    c.header('Cache-Control', 'no-store, max-age=0')
+    c.header('X-Robots-Tag', 'noindex, nofollow')
+    return c.json({ ok: s.ok, estado: s.estado, minutos_fora_do_ar: s.minutosForaDoAr, mensagem: s.mensagem, ...(s.acao ? { acao: s.acao } : {}) }, s.ok ? 200 : 503)
+  })
 
   app.get('/health', (c) => {
     let instrucoesOk = false
@@ -253,6 +280,7 @@ export function criarApp(deps: AppDeps): Hono {
           cartaoPausa(store.pausa(), token!, deps.agenda.fuso),
           cartaoConversas(store.handoffsAtivos(), token!, deps.agenda.fuso),
           cartaoAgendaProfessores(acesso.estado(), token!, origem),
+          cartaoMonitor(origem, cfg.toleranciaQuedaMin),
         ),
       )
     })

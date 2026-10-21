@@ -80,6 +80,10 @@ Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) c
 
 Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar avaliações** numa página do próprio bot, na mesma agenda do Google. Sem login: o acesso é um endereço secreto que você gera com um toque na página de conexão e compartilha no grupo da equipe. Passo a passo no **AGENDA-PROFESSORES.md**.
 
+## Ser avisado se o WhatsApp cair
+
+O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente quando está conectado e dá erro quando está fora do ar há mais de 5 minutos (`STATUS_TOLERANCIA_MIN`). Cadastre esse endereço num monitor gratuito (UptimeRobot, por exemplo) e receba um e-mail quando cair. Passo a passo no **AVISO-QUEDA.md**. O endereço fica no cartão "Aviso se o WhatsApp cair", na página de conexão.
+
 ## Operação do dia a dia
 
 - **Mudar o que o bot diz ou os preços:** edite o `instrucoes.md`.
@@ -103,6 +107,7 @@ Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar a
 | `src/prompt.ts` | Regras fixas de segurança (ficam no código de propósito) |
 | `src/agent.ts` | Conversa com o Claude e as ferramentas (chamar a equipe, consultar horários, agendar) |
 | `src/painel-agenda.ts`, `src/pagina-agenda.ts` | Agenda dos professores (página /agenda) |
+| `src/status.ts` | Página de status para o monitor externo avisar quedas |
 | `agenda.json` | **Você edita**: dias e horários das visitas, períodos (manhã/tarde/noite), antecedência, feriados |
 | `mensagens.md` | **Você edita**: textos de "avaliação agendada" e "pedido recebido" |
 | `src/agendamento.ts`, `src/agenda.ts`, `src/google.ts` | Regras de horário e integração com o Google Agenda |
@@ -110,7 +115,7 @@ Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar a
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 265 testes sem gastar nada |
+| `test/` | `npm test` roda 283 testes sem gastar nada |
 
 ## Próximas fases
 

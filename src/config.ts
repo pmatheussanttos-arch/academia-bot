@@ -1,5 +1,6 @@
 import { lerProfessores } from './acesso-agenda.js'
 import { lerCredenciaisGoogle } from './google.js'
+import { TOLERANCIA_PADRAO_MIN } from './status.js'
 import { normalizarNumeroRecepcao } from './recepcao.js'
 
 export type Esforco = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -48,6 +49,8 @@ export interface Config {
    */
   numerosAvisos: string[]
   adminToken?: string
+  /** Minutos que o WhatsApp pode ficar fora do ar antes de a página de status virar alarme. */
+  toleranciaQuedaMin: number
   /** Nomes que aparecem na lista "quem é você?" da agenda dos professores (AGENDA_PROFESSORES). */
   professores: string[]
   telegram?: { token: string; chatId: string }
@@ -123,6 +126,7 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
     numerosPermitidos: lista(env.NUMEROS_PERMITIDOS),
     numerosAvisos,
     adminToken: env.ADMIN_TOKEN?.trim() || undefined,
+    toleranciaQuedaMin: numero(env.STATUS_TOLERANCIA_MIN, TOLERANCIA_PADRAO_MIN),
     professores: lerProfessores(env.AGENDA_PROFESSORES),
     telegram: telegramToken && telegramChat ? { token: telegramToken, chatId: telegramChat } : undefined,
     permitirInstrucoesIncompletas: env.PERMITIR_INSTRUCOES_INCOMPLETAS === '1',
