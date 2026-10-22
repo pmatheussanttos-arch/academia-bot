@@ -75,6 +75,43 @@ function avaliarLimite(deps: AgenteDeps, chat: string): 'ok' | 'avisar' | 'silen
   return 'ok'
 }
 
+const semAcento = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+const normalizarFrase = (t: string) => semAcento(t).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+
+/** As perguntas (frases que terminam em "?") de um texto. */
+function perguntasDe(texto: string): string[] {
+  return (texto.match(/[^.!?\n]+\?/g) ?? []).map((p) => normalizarFrase(p)).filter((p) => p.length > 8)
+}
+
+/**
+ * Trava contra o assistente repetir a mesma pergunta no fim de várias respostas (ex.: "Qual é o seu objetivo hoje?
+ * Assim consigo te indicar o melhor plano."). Se a última pergunta da resposta é idêntica a uma que ele já fez antes,
+ * ela (com o complemento curto que vem logo depois) é tirada, e o resto da resposta segue. Só mexe quando sobra texto
+ * de verdade: nunca deixa a resposta vazia.
+ */
+export function tirarPerguntaRepetida(resposta: string, anteriores: string[]): string {
+  const texto = resposta.trimEnd()
+  const fim = texto.lastIndexOf('?')
+  if (fim < 0) return resposta
+  const complemento = texto.slice(fim + 1)
+  // Complemento longo ou com números (preço, horário) é informação nova, não parte da pergunta: não mexe.
+  if (complemento.length > 70 || /\d/.test(complemento)) return resposta
+
+  const jaFeitas = new Set(anteriores.flatMap(perguntasDe))
+  if (jaFeitas.size === 0) return resposta
+
+  const corpo = texto.slice(0, fim)
+  // O emoji também fecha a frase: "...isso 😊 Qual é o seu objetivo hoje?"
+  const ultimoEmoji = [...corpo.matchAll(/\p{Extended_Pictographic}\uFE0F?/gu)].at(-1)
+  const aposEmoji = ultimoEmoji ? ultimoEmoji.index! + ultimoEmoji[0].length : 0
+  const inicio = Math.max(corpo.lastIndexOf('.') + 1, corpo.lastIndexOf('!') + 1, corpo.lastIndexOf('?') + 1, corpo.lastIndexOf('\n') + 1, aposEmoji)
+  const pergunta = normalizarFrase(texto.slice(inicio, fim + 1))
+  if (pergunta.length <= 8 || !jaFeitas.has(pergunta)) return resposta
+
+  const resto = texto.slice(0, inicio).replace(/\s*\[\[nova mensagem\]\]\s*$/i, '').trimEnd()
+  return normalizarFrase(resto).length >= 15 ? resto : resposta
+}
+
 async function enviar(deps: AtendimentoDeps, msg: MensagemRecebida, texto: string): Promise<void> {
   const partes = dividirEmMensagens(texto)
   if (partes.length === 0) return
@@ -146,7 +183,10 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
       await encaminharParaHumano(deps, msg.from, msg.nome, 'Erro técnico do assistente: o cliente ficou sem resposta automática.')
       resposta = msgErroTecnico(cfg)
     }
-    await enviar(deps, msg, resposta)
+    const anteriores = store.historico(msg.from, 12).filter((m) => m.papel === 'assistant').map((m) => m.conteudo)
+    const semRepetir = tirarPerguntaRepetida(resposta, anteriores)
+    if (semRepetir !== resposta) console.log(`[atendimento] tirei uma pergunta repetida do fim da resposta para +${msg.from}`)
+    await enviar(deps, msg, semRepetir)
   } catch (err) {
     console.error('[atendimento] erro inesperado:', err)
   }

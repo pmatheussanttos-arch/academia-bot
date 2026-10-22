@@ -123,7 +123,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 340 testes sem gastar nada |
+| `test/` | `npm test` roda 352 testes sem gastar nada |
 
 ## Próximas fases
 

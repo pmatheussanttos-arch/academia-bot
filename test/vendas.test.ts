@@ -152,3 +152,94 @@ describe('mandar duas mensagens seguidas', () => {
     assert.match(i, /envie \*\*exatamente\*\* como vieram, mesmo que sejam longas/)
   })
 })
+
+import { tirarPerguntaRepetida } from '../src/atendimento.js'
+
+describe('professor, sem falar de personal', () => {
+  const i = instrucoes()
+
+  it('só diz que tem professor auxiliando, sem a explicação sobre personal e sem "contratar por fora"', () => {
+    assert.match(i, /temos professor que auxilia em todo o treino/)
+    assert.match(i, /\*\*Não\*\* fale de personal trainer/)
+    assert.match(i, /\*\*não\*\* explique a diferença entre professor e personal/)
+    assert.doesNotMatch(i, /contratá-lo por fora/)
+    assert.doesNotMatch(i, /não é um acompanhamento individual/)
+    assert.doesNotMatch(i, /não há personal trainer individual incluso/)
+  })
+
+  it('a resposta sugerida é neutra no gênero', () => {
+    assert.match(i, /Pode ficar à vontade/)
+    assert.doesNotMatch(i, /Pode ficar tranquilo\b/)
+  })
+})
+
+describe('não repetir a pergunta do objetivo', () => {
+  const OBJETIVO = 'Qual é o seu objetivo hoje? Assim consigo te indicar o melhor plano.'
+
+  it('as instruções limitam o objetivo a uma pergunta só e mandam variar', () => {
+    const i = instrucoes()
+    assert.match(i, /pergunte \*\*uma única vez nesta conversa\*\*/)
+    assert.match(i, /nunca mais use essa frase nem uma parecida/)
+    assert.match(i, /Nunca repita uma pergunta que você já fez nesta conversa/)
+    assert.match(i, /não volte a cobrar a resposta/i)
+    assert.match(i, /pergunta \*\*diferente\*\* das anteriores/)
+    assert.match(REGRAS_FIXAS, /Nunca repita uma pergunta que você já fez nesta conversa/)
+  })
+
+  it('o caso do print: respondeu sobre professor e colou de novo a pergunta do objetivo', () => {
+    const resposta = `Temos professores que auxiliam em todos os treinos 😊\n${OBJETIVO}`
+    const limpa = tirarPerguntaRepetida(resposta, [`O 3x fica R$ 89,90.\n\n${OBJETIVO}`])
+    assert.equal(limpa, 'Temos professores que auxiliam em todos os treinos 😊')
+    assert.doesNotMatch(limpa, /objetivo/)
+  })
+
+  it('a primeira vez que pergunta, a pergunta passa normalmente', () => {
+    const resposta = `O 3x fica R$ 89,90.\n${OBJETIVO}`
+    assert.equal(tirarPerguntaRepetida(resposta, []), resposta)
+    assert.equal(tirarPerguntaRepetida(resposta, ['Olá! Qual o seu nome?']), resposta)
+  })
+
+  it('uma pergunta DIFERENTE da anterior nunca é tirada', () => {
+    const resposta = 'Temos professor auxiliando 😊 Qual horário você pretende treinar?'
+    assert.equal(tirarPerguntaRepetida(resposta, [OBJETIVO]), resposta)
+  })
+
+  it('reconhece a mesma pergunta mesmo com acento, maiúscula e pontuação diferentes', () => {
+    const limpa = tirarPerguntaRepetida('Sem problemas, vou te ajudar com isso 😊 QUAL E O SEU OBJETIVO HOJE?', [OBJETIVO])
+    assert.equal(limpa, 'Sem problemas, vou te ajudar com isso 😊')
+  })
+
+  it('nunca deixa a resposta vazia: se só sobraria a pergunta, ela fica', () => {
+    assert.equal(tirarPerguntaRepetida(OBJETIVO, [OBJETIVO]), OBJETIVO)
+    assert.equal(tirarPerguntaRepetida('Certo! Qual é o seu objetivo hoje?', [OBJETIVO]), 'Certo! Qual é o seu objetivo hoje?', 'resto curto demais para valer sozinho')
+  })
+
+  it('informação nova depois da pergunta (preço, horário) nunca é apagada', () => {
+    const resposta = 'Qual é o seu objetivo hoje? O 3x fica R$ 89,90 por mês, sem fidelidade.'
+    assert.equal(tirarPerguntaRepetida(resposta, [OBJETIVO]), resposta)
+    const longo = `Temos professor auxiliando 😊 Qual é o seu objetivo hoje? ${'Explico tudo sobre os planos e as formas de pagamento disponíveis. '.repeat(2)}`
+    assert.equal(tirarPerguntaRepetida(longo, [OBJETIVO]), longo.trimEnd() === longo ? longo : longo)
+  })
+
+  it('perguntas no meio do texto e respostas sem pergunta ficam como estão', () => {
+    const meio = 'Qual é o seu objetivo hoje? Assim consigo te indicar. Posso te explicar os planos.'
+    assert.equal(tirarPerguntaRepetida(meio, [OBJETIVO]), meio, 'só mexe na pergunta do FIM')
+    assert.equal(tirarPerguntaRepetida('Combinado, te espero amanhã 😊', [OBJETIVO]), 'Combinado, te espero amanhã 😊')
+  })
+
+  it('limpa também a marca de nova mensagem que ficaria pendurada', () => {
+    const resposta = `Tem professor em todo o treino 😊\n[[nova mensagem]]\n${OBJETIVO}`
+    assert.equal(tirarPerguntaRepetida(resposta, [OBJETIVO]), 'Tem professor em todo o treino 😊')
+  })
+
+  it('no atendimento de verdade: o cliente não recebe a pergunta repetida, e o log registra', async () => {
+    const base = criarDepsDeAgente([texto(`O 3x fica R$ 89,90.\n${OBJETIVO}`), texto(`Temos professor auxiliando 😊\n${OBJETIVO}`)])
+    const enviadas: string[] = []
+    const deps: AtendimentoDeps = { ...base.deps, wa: { async enviarTexto(_p, t) { enviadas.push(t) }, async marcarLida() {} }, avisarErro: async () => {}, pausaEntreMensagensMs: 0 }
+    await tratarMensagem(deps, { wamid: 'a1', from: CHAT, nome: '', tipo: 'text', texto: '3x por semana' })
+    await tratarMensagem(deps, { wamid: 'a2', from: CHAT, nome: '', tipo: 'text', texto: 'tem professor?' })
+    assert.match(enviadas[0]!, /objetivo hoje/, 'na primeira vez a pergunta vai')
+    assert.equal(enviadas[1], 'Temos professor auxiliando 😊', 'na segunda, não repete')
+    assert.equal(base.store.historico(CHAT, 10).filter((h) => h.papel === 'assistant').at(-1)!.conteudo, 'Temos professor auxiliando 😊')
+  })
+})
