@@ -3,7 +3,7 @@ import type { PeriodoPedido, ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
 import { avisoDeMatricula, validarMatricula } from './matricula.js'
 import { carregarMensagens, renderizar } from './mensagens.js'
-import { carregarInstrucoes, limparNome, montarSistema } from './prompt.js'
+import { carregarInstrucoes, limparNome, montarSistema, situacaoDaConversa } from './prompt.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Notificador } from './notify.js'
 import type { Store } from './store.js'
@@ -306,8 +306,10 @@ function textoDe(resposta: Anthropic.Message): string {
 export async function responder(deps: AgenteDeps, chat: string, nome: string | undefined): Promise<string> {
   const { cfg, store, claude } = deps
   const agora = (deps.agora ?? (() => new Date()))()
-  const system = montarSistema(carregarInstrucoes(cfg.instrucoesPath), agora, nome, deps.agenda.fuso)
-  const mensagens = historicoParaMensagens(store.historico(chat, cfg.historicoMax))
+  const historico = store.historico(chat, cfg.historicoMax)
+  const situacao = situacaoDaConversa(store.historico(chat, 200).filter((m) => m.papel === 'assistant').map((m) => m.conteudo))
+  const system = montarSistema(carregarInstrucoes(cfg.instrucoesPath), agora, nome, deps.agenda.fuso, situacao)
+  const mensagens = historicoParaMensagens(historico)
 
   let ultimoTexto = ''
   let encaminhou = false

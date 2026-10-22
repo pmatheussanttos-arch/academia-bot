@@ -92,12 +92,14 @@ export function montarSistema(
   agora: Date,
   nomeContato: string | undefined,
   fuso = 'America/Sao_Paulo',
+  situacao: string[] = [],
 ): Anthropic.TextBlockParam[] {
   void nomeContato // o nome do perfil fica de fora de propósito: o assistente tem que perguntar (veja as regras fixas)
   const dinamico = [
     `Data e hora agora (Brasília): ${formatarAgora(agora)}.`,
     `Data de hoje no formato das ferramentas (AAAA-MM-DD): ${hojeISO(agora, fuso)}.`,
     'Você não sabe o nome desta pessoa: só considere o nome que ela escrever nesta conversa.',
+    ...situacao,
   ].join('\n')
 
   return [
@@ -108,4 +110,31 @@ export function montarSistema(
     },
     { type: 'text', text: dinamico },
   ]
+}
+
+const semAcento = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const PEDIU_NOME = /qual (e )?(o )?seu nome|como voce se chama|como posso te chamar|qual o nome/
+
+/** Quantas mensagens do assistente já pediram o nome da pessoa. */
+export function vezesQuePediuNome(respostasDoAssistente: string[]): number {
+  return respostasDoAssistente.filter((t) => PEDIU_NOME.test(semAcento(t))).length
+}
+
+/** Avisos que dependem do andamento da conversa (já se apresentou? quantas vezes pediu o nome?). */
+export function situacaoDaConversa(respostasDoAssistente: string[]): string[] {
+  const linhas: string[] = []
+  if (respostasDoAssistente.length > 0) {
+    linhas.push('Você já se apresentou nesta conversa: NUNCA repita a apresentação ("Olá! Eu sou o GFIT...").')
+  }
+  const pedidos = vezesQuePediuNome(respostasDoAssistente)
+  if (pedidos >= 2) {
+    linhas.push(
+      'Você já pediu o nome duas vezes. NÃO peça o nome de novo, nunca mais nesta conversa. Se a pessoa não disse, tudo bem: siga o fluxo sem nome (sem "Prazer", sem usar nome) e avance para a próxima etapa, perguntando o que ela busca.',
+    )
+  } else if (pedidos === 1) {
+    linhas.push(
+      'Você já pediu o nome uma vez. Se a pessoa não disse, responda o que ela perguntou e, só se couber de forma natural, peça o nome mais UMA vez (é a última). Se ela já disse o nome, use-o.',
+    )
+  }
+  return linhas
 }
