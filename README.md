@@ -27,7 +27,7 @@ Dois jeitos de conectar ao WhatsApp, escolhidos pela variável `WHATSAPP_MODO`:
 
 ## 0. Testar pelo navegador, sem WhatsApp
 
-Com o bot no ar, abra a página `/teste?token=SEU_ADMIN_TOKEN` (ou o cartão "Testar o bot sem WhatsApp" na página de conexão) e converse com o GFIT como se fosse um cliente. Nada vai para o WhatsApp, para a agenda do Google nem para a lista de matrículas. Veja o **TESTAR-SEM-WHATSAPP.md**.
+Com o bot no ar, abra a página `/teste?token=SEU_ADMIN_TOKEN` (ou a aba "Testar" do painel de conexão) e converse com o GFIT como se fosse um cliente. Nada vai para o WhatsApp, para a agenda do Google nem para a lista de matrículas. Veja o **TESTAR-SEM-WHATSAPP.md**.
 
 ## 1. Testar sem WhatsApp no terminal
 
@@ -82,6 +82,10 @@ Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) c
 
 **Avisos à equipe.** Sempre aparecem no log da Render. No modo `qr`, preencha `NUMEROS_AVISOS` com o WhatsApp de quem atende (outro número, não o da academia) e o bot manda a mensagem por lá, com retentativas e um teto por hora (veja o QR-WHATSAPP.md). O Telegram é opcional e funciona junto: preencha `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`. No modo `cloud` só o Telegram está disponível (a API oficial só envia texto livre dentro de 24h da última mensagem).
 
+## Painel do dono (abas)
+
+A página de conexão (`/conectar?token=SEU_ADMIN_TOKEN`, o mesmo atalho de sempre) agora é um painel com seis abas: **Hoje**, **Avaliações**, **Vendas**, **Conversas**, **Bot** e **Testar**. Mostra o que está marcado hoje, quantas avaliações foram feitas e quem marcou (assistente, recepção, professores ou direto na agenda do Google), o funil conversas → avaliações → matrículas, as matrículas que faltam lançar na plataforma, quem veio e quem faltou, quem está esperando a equipe, o que o bot não soube responder, o gasto estimado com a IA e a saúde da conexão. Também liga e desliga o resumo semanal e o lembrete ao cliente. Guia completo no **PAINEL.md**.
+
 ## Agenda para os professores (página no navegador)
 
 Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar avaliações** numa página do próprio bot, na mesma agenda do Google. Sem login: o acesso é um endereço secreto que você gera com um toque na página de conexão e compartilha no grupo da equipe. Passo a passo no **AGENDA-PROFESSORES.md**.
@@ -115,6 +119,8 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/painel-agenda.ts`, `src/pagina-agenda.ts` | Agenda dos professores (página /agenda) |
 | `src/status.ts` | Página de status para o monitor externo avisar quedas |
 | `src/matricula.ts` | Matrícula pela conversa: conferência dos dados e aviso à equipe |
+| `src/painel-dono.ts`, `src/metricas.ts` | Painel em abas (/conectar) e os números dele (agenda, funil, custo, saúde) |
+| `src/rotinas.ts` | Resumo semanal, lembrete ao cliente e alerta de gasto |
 | `src/sala-de-teste.ts`, `src/pagina-teste.ts` | Página /teste: conversa com o bot no navegador, isolada do mundo real |
 | `agenda.json` | **Você edita**: dias e horários das visitas, períodos (manhã/tarde/noite), antecedência, feriados |
 | `mensagens.md` | **Você edita**: textos de "avaliação agendada" e "pedido recebido" |
@@ -123,7 +129,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 352 testes sem gastar nada |
+| `test/` | `npm test` roda 470 testes sem gastar nada |
 
 ## Próximas fases
 

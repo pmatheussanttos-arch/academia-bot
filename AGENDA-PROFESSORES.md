@@ -89,3 +89,13 @@ Sem senha, **o endereço é a chave**. Quem tiver o link entra. Por isso:
 | Não deixa ligar a página | `AGENDA_PROFESSORES` está vazia |
 | "Esse horário acabou de ser ocupado" | Alguém marcou antes (outro professor ou o assistente). A tela se atualiza sozinha |
 | A avaliação some da página mas fica no Google | Não acontece: a página apaga o evento de verdade. Se estranhar, confira se olhou a agenda certa |
+
+## Anotar quem veio, quem faltou e quem matriculou
+
+Depois que a avaliação passa, o horário continua na grade (com o nome do cliente). Toque nele e escolha:
+
+- **✅ Veio**
+- **❌ Faltou**
+- **🏋️ Matriculou** (veio e fechou plano)
+
+O horário passa a mostrar o selo (✅ ❌ 🏋️) na grade. Errou? Toque de novo e escolha outra opção, ou **Apagar anotação**. Só dá para anotar depois que a avaliação começou. Essas anotações alimentam, no painel do dono, a **taxa de faltas** e a **taxa de conversão** (quantos dos que vieram fecharam plano).
