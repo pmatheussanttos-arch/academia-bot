@@ -259,12 +259,12 @@ describe('botão na página /conectar e rotas /admin/pausa', () => {
 
   it('lista as conversas em que o bot está calado, com botão para devolver; devolver tira da lista', async () => {
     const { app, store } = montarApp()
-    assert.match(await (await app.request(`/conectar?${T}`)).text(), /Nenhuma\. O bot está respondendo todas/)
+    assert.match(await (await app.request(`/conectar?${T}&aba=conversas`)).text(), /Nenhuma\. O bot está respondendo todas/)
 
     store.definirHandoff('5511977776666', 1, 'Transferido pela equipe.')
     store.definirHandoff('5511966665555', 1, 'Quer cancelar o plano')
     store.definirHandoff('277038426505415', 1, 'A equipe respondeu pelo WhatsApp.')
-    const html = await (await app.request(`/conectar?${T}`)).text()
+    const html = await (await app.request(`/conectar?${T}&aba=conversas`)).text()
     assert.match(html, /Conversas com a equipe \(3\)/)
     assert.match(html, /\+55 \(11\) 97777-6666/)
     assert.match(html, /\+55 \(11\) 96666-5555/)
@@ -278,13 +278,13 @@ describe('botão na página /conectar e rotas /admin/pausa', () => {
     assert.equal(res.headers.get('location'), '/conectar?token=segredo-admin')
     assert.equal(store.emHandoff('5511977776666'), false)
     assert.equal(store.emHandoff('5511966665555'), true, 'as outras continuam')
-    assert.match(await (await app.request(`/conectar?${T}`)).text(), /Conversas com a equipe \(2\)/)
+    assert.match(await (await app.request(`/conectar?${T}&aba=conversas`)).text(), /Conversas com a equipe \(2\)/)
   })
 
   it('o motivo vindo do cliente/IA aparece escapado na página (sem injetar HTML)', async () => {
     const { app, store } = montarApp()
     store.definirHandoff('5511977776666', 1, '<img src=x onerror=alert(1)> "oi"')
-    const html = await (await app.request(`/conectar?${T}`)).text()
+    const html = await (await app.request(`/conectar?${T}&aba=conversas`)).text()
     assert.doesNotMatch(html, /<img src=x/)
     assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/)
   })

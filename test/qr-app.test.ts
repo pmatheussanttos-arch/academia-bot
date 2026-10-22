@@ -49,11 +49,14 @@ describe('página /conectar (QR code)', () => {
 
   it('quando conectado, mostra o número e não recarrega', async () => {
     const app = appQr({ status: 'conectado', numero: '5511999998888', desde: Date.now() })
-    const html = await (await app.request('/conectar?token=segredo-admin')).text()
-    assert.match(html, /Conectado/)
-    assert.match(html, /\+5511999998888/)
-    assert.doesNotMatch(html, /http-equiv="refresh"/)
-    assert.doesNotMatch(html, /<img/)
+    for (const aba of ['', '&aba=bot']) {
+      const html = await (await app.request(`/conectar?token=segredo-admin${aba}`)).text()
+      assert.match(html, /[Cc]onectado/)
+      assert.match(html, /\+5511999998888/)
+      assert.doesNotMatch(html, /http-equiv="refresh"/)
+      assert.doesNotMatch(html, /<img/)
+    }
+    assert.match(await (await app.request('/conectar?token=segredo-admin&aba=bot')).text(), /✅ Conectado como/)
   })
 
   it('a raiz redireciona para /conectar levando o token', async () => {

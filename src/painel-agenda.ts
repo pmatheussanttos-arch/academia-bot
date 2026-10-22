@@ -2,7 +2,7 @@ import { NOME_PERIODO, diaDaSemana, epochLocal, horariosDoDia, hojeISO, limitesD
 import type { ServicoAgenda } from './agendamento.js'
 import type { EventoAgenda, GoogleAgendaApi } from './google.js'
 import { limparNome } from './prompt.js'
-import type { Store } from './store.js'
+import type { Comparecimento, StatusComparecimento, Store } from './store.js'
 
 /**
  * Agenda dos professores: ver a semana, marcar, desmarcar e remarcar avaliações na MESMA agenda do Google que o bot usa,
@@ -36,6 +36,8 @@ export interface Ocupante {
   marcadoPor: string
   inicio: number
   fim: number
+  /** O que a equipe anotou depois da avaliação (veio, faltou ou matriculou). */
+  comparecimento?: StatusComparecimento
 }
 
 export type EstadoSlot = 'livre' | 'ocupado' | 'passado' | 'fechado'
@@ -155,7 +157,7 @@ export class PainelAgenda {
     return hojeISO(this.servico.agora(), this.regras.fusoHorario)
   }
 
-  private ocupante(e: EventoAgenda): Ocupante {
+  private ocupante(e: EventoAgenda, marcas: Map<string, Comparecimento>): Ocupante {
     const avaliacao = ehAvaliacao(e.titulo)
     return {
       id: e.id,
@@ -166,6 +168,7 @@ export class PainelAgenda {
       marcadoPor: avaliacao ? quemMarcou(e) : '',
       inicio: e.inicio!,
       fim: e.fim!,
+      ...(avaliacao && marcas.get(e.id) ? { comparecimento: marcas.get(e.id)!.status } : {}),
     }
   }
 
@@ -188,6 +191,7 @@ export class PainelAgenda {
     const segunda = segundaDaSemana(ref)
     const eventos = await api.listarEventos(agendaId, epochLocal(segunda, '00:00', regras.fusoHorario), epochLocal(somarDias(segunda, 7), '00:00', regras.fusoHorario))
     const agora = this.agoraMs()
+    const marcas = this.store.comparecimentoDe(eventos.filter((e) => ehAvaliacao(e.titulo)).map((e) => e.id))
 
     const dias: DiaPainel[] = []
     for (let i = 0; i < 7; i++) {
@@ -201,7 +205,7 @@ export class PainelAgenda {
         const fim = inicio + regras.duracaoMin * 60_000
         const ocupantes = eventos
           .filter((e) => e.ocupa && e.inicio !== undefined && e.fim !== undefined && e.inicio < fim && e.fim > inicio)
-          .map((e) => this.ocupante(e))
+          .map((e) => this.ocupante(e, marcas))
         const cheio = ocupantes.length >= regras.capacidade
         const estado: EstadoSlot = fechado ? 'fechado' : cheio ? 'ocupado' : inicio <= agora ? 'passado' : 'livre'
         const alteravel = ocupantes.find((o) => o.ehAvaliacao)
@@ -351,5 +355,32 @@ export class PainelAgenda {
         return { mensagem: `Avaliação de ${cliente} remarcada para ${depois}. O horário de ${antes} voltou a ficar livre.`, liberado: { data: dataAntes, hhmm: r.hora } }
       })
       .catch((e) => this.traduzir(e))
+  }
+
+  /**
+   * Anota o que aconteceu numa avaliação que já começou: o cliente veio, faltou ou fechou matrícula. "limpar" desfaz.
+   * Não mexe na agenda do Google, só no banco do bot (alimenta as taxas de falta e de conversão do painel).
+   */
+  async comparecimento(p: { eventoId: string; status: StatusComparecimento | 'limpar'; por: string }): Promise<ResultadoAcao & { status?: StatusComparecimento }> {
+    try {
+      const { api, agendaId } = this.google
+      const ev = await api.obterEvento(agendaId, p.eventoId)
+      if (!ev) throw new ErroPainel('Esse evento não existe mais na agenda. A tela vai atualizar.', 404, 'nao_existe')
+      if (!ehAvaliacao(ev.titulo) || ev.inicio === undefined || ev.diaInteiro) {
+        throw new ErroPainel('Só dá para anotar presença em avaliações ("Avaliação — Nome").', 403, 'nao_e_avaliacao')
+      }
+      const cliente = nomeDoCliente(ev.titulo) || 'Cliente'
+      if (p.status === 'limpar') {
+        this.store.desfazerComparecimento(p.eventoId)
+        return { mensagem: `Anotação de ${cliente} apagada.` }
+      }
+      if (ev.inicio > this.agoraMs()) throw new ErroPainel('Essa avaliação ainda não aconteceu.', 400, 'futuro')
+      this.store.marcarComparecimento({ eventoId: p.eventoId, inicio: ev.inicio, cliente, whatsapp: whatsappDoEvento(ev) ?? '', status: p.status, por: p.por }, this.agoraMs())
+      console.log(`[agenda] ${p.por} anotou: ${cliente} ${p.status}`)
+      const dito = { veio: 'veio à avaliação', faltou: 'faltou', matriculou: 'veio e fechou matrícula' }[p.status]
+      return { mensagem: `${cliente} ${dito}. Anotado!`, status: p.status }
+    } catch (e) {
+      return this.traduzir(e)
+    }
   }
 }

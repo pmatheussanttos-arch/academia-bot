@@ -123,7 +123,7 @@ describe('página de status para o monitor externo', () => {
   })
 
   it('a página de conexão mostra o endereço pronto para copiar', async () => {
-    const html = await (await app(estado({ status: 'conectado' })).request('http://meu-bot.onrender.com/conectar?token=segredo-admin')).text()
+    const html = await (await app(estado({ status: 'conectado' })).request('http://meu-bot.onrender.com/conectar?token=segredo-admin&aba=bot')).text()
     assert.match(html, /Aviso se o WhatsApp cair/)
     assert.match(html, /value="http:\/\/meu-bot\.onrender\.com\/status\/whatsapp"/)
     assert.match(html, /mais de 5 minutos/)

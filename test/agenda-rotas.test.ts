@@ -243,7 +243,7 @@ describe('botões da agenda na página /conectar (o dono não precisa de comando
 
   it('desligada: mostra o botão de gerar o link e a lista de professores', async () => {
     const { app } = montar()
-    const html = await (await app.request(`/conectar?${T}`)).text()
+    const html = await (await app.request(`/conectar?${T}&aba=avaliacoes`)).text()
     assert.match(html, /Agenda dos professores/)
     assert.match(html, /Gerar o link da agenda/)
     assert.match(html, /Ana, Bia, Carlos/)
@@ -258,7 +258,7 @@ describe('botões da agenda na página /conectar (o dono não precisa de comando
     assert.equal(res.headers.get('location'), '/conectar?token=segredo-admin')
     const codigo = store.lerAjuste('agenda_codigo')!
 
-    const html = await (await app.request(`http://meu-bot.onrender.com/conectar?${T}`)).text()
+    const html = await (await app.request(`http://meu-bot.onrender.com/conectar?${T}&aba=avaliacoes`)).text()
     assert.match(html, /Agenda dos professores: LIGADA/)
     assert.match(html, new RegExp(`value="http://meu-bot\\.onrender\\.com/agenda/${codigo}"`), 'o endereço completo vem pronto')
     assert.match(html, /Abrir a agenda/)
@@ -277,12 +277,12 @@ describe('botões da agenda na página /conectar (o dono não precisa de comando
 
     await app.request(`/admin/agenda?${T}`, form({ acao: 'desligar', voltar: 'conectar' }))
     assert.equal(store.lerAjuste('agenda_codigo'), undefined)
-    assert.match(await (await app.request(`/conectar?${T}`)).text(), /Gerar o link da agenda/)
+    assert.match(await (await app.request(`/conectar?${T}&aba=avaliacoes`)).text(), /Gerar o link da agenda/)
   })
 
   it('sem AGENDA_PROFESSORES, a página explica o que fazer em vez de oferecer o botão', async () => {
     const { app, store } = montar({ AGENDA_PROFESSORES: '' })
-    const html = await (await app.request(`/conectar?${T}`)).text()
+    const html = await (await app.request(`/conectar?${T}&aba=avaliacoes`)).text()
     assert.match(html, /cadastre na Render a variável <b>AGENDA_PROFESSORES<\/b>/)
     assert.doesNotMatch(html, /Gerar o link da agenda/)
     await app.request(`/admin/agenda?${T}`, form({ acao: 'ligar', voltar: 'conectar' }))

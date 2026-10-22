@@ -174,10 +174,10 @@ describe('matrículas na página do dono', () => {
     const base = criarDepsDeAgente([], { WHATSAPP_MODO: 'qr', ADMIN_TOKEN: 'segredo-admin' })
     const app = criarApp({ ...base.deps, wa: { async enviarTexto() {}, async marcarLida() {} }, avisarErro: async () => {}, fila: new FilaPorChave(), whatsappEstado: () => ({ status: 'conectado', desde: Date.now() }), iniciadoEm: Date.now() })
 
-    assert.match(await (await app.request('/conectar?token=segredo-admin')).text(), /Nenhuma por enquanto/)
+    assert.match(await (await app.request('/conectar?token=segredo-admin&aba=vendas')).text(), /Nenhuma por enquanto/)
 
     base.store.registrarMatricula({ chat: CHAT, nome: 'Maria Silva', telefone: '5511977776666', email: 'maria@email.com', nascimento: '1990-03-25', plano: 'Anual VIP', pagamento: 'pix', observacao: '<b>indicação</b>' })
-    const html = await (await app.request('/conectar?token=segredo-admin')).text()
+    const html = await (await app.request('/conectar?token=segredo-admin&aba=vendas')).text()
     assert.match(html, /Matrículas pelo WhatsApp \(1\)/)
     assert.match(html, /Maria Silva/)
     assert.match(html, /Anual VIP/)

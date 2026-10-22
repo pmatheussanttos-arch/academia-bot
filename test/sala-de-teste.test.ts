@@ -240,7 +240,7 @@ describe('rotas /teste', () => {
 
   it('a página de conexão tem o botão para abrir o teste', async () => {
     const { app } = montar([])
-    const html = await (await app.request(`/conectar?${T}`)).text()
+    const html = await (await app.request(`/conectar?${T}&aba=testar`)).text()
     assert.match(html, /Testar o bot sem WhatsApp/)
     assert.match(html, /href="\/teste\?token=segredo-admin"/)
   })
