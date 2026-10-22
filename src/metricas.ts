@@ -2,7 +2,7 @@ import type { EstadoWhatsapp } from './baileys.js'
 import { diaDaSemana, epochLocal, horariosDoDia, hojeISO, somarDias, type DiaSemana } from './agenda.js'
 import type { ServicoAgenda } from './agendamento.js'
 import { normalizarNumero, type Config } from './config.js'
-import { ehAvaliacao, nomeDoCliente, segundaDaSemana, whatsappDoEvento } from './painel-agenda.js'
+import { ehAvaliacao, nomeDoCliente, segundaDaSemana, statusDoEvento, whatsappDoEvento } from './painel-agenda.js'
 import { calcularStatus, type Status } from './status.js'
 import type { Comparecimento, EventoRegistrado, MatriculaSalva, StatusComparecimento, Store } from './store.js'
 import type { EventoAgenda } from './google.js'
@@ -214,7 +214,7 @@ export class Metricas {
       inicio: e.inicio!,
       origem: origemDe(e),
       marcadoPor: marcadoPorDe(e),
-      ...(comp.get(e.id) ? { comparecimento: comp.get(e.id)!.status } : {}),
+      ...(statusDoEvento(e, comp) ? { comparecimento: statusDoEvento(e, comp)! } : {}),
     }
   }
 
@@ -257,13 +257,13 @@ export class Metricas {
     const brutas = eventos.filter((e) => e.ocupa && !e.diaInteiro && e.inicio !== undefined && ehAvaliacao(e.titulo))
     const dela = brutas.filter((e) => e.inicio! >= de && e.inicio! < ate)
     const marcas = store.comparecimentoDe(dela.map((e) => e.id))
-    const conta = (s: StatusComparecimento) => dela.filter((e) => marcas.get(e.id)?.status === s).length
+    const conta = (s: StatusComparecimento) => dela.filter((e) => statusDoEvento(e, marcas) === s).length
     const conversas = store.conversasNovas(de, ate)
     const chamaram = Math.min(conversas, store.contarChatsComEvento('transferencia', de, ate))
     const dia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
     return {
       rotulo: `${dia(segundaISO)} a ${dia(somarDias(segundaISO, 6))}`,
-      avaliacoes: { total: dela.length, veio: conta('veio'), faltou: conta('faltou'), matriculou: conta('matriculou'), semAnotar: dela.length - dela.filter((e) => marcas.has(e.id)).length },
+      avaliacoes: { total: dela.length, veio: conta('veio'), faltou: conta('faltou'), matriculou: conta('matriculou'), semAnotar: dela.length - dela.filter((e) => statusDoEvento(e, marcas) !== undefined).length },
       matriculasPeloBot: store.contarMatriculas(de, ate),
       conversasNovas: conversas,
       ...(conversas > 0 ? { resolvidasPct: Math.round(((conversas - chamaram) / conversas) * 100) } : {}),

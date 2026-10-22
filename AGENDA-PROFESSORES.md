@@ -92,6 +92,20 @@ Sem senha, **o endereço é a chave**. Quem tiver o link entra. Por isso:
 
 ## Anotar quem veio, quem faltou e quem matriculou
 
+**Direto no Google Agenda (o jeito mais fácil para quem já usa o app):** depois da avaliação, edite o título do evento e escreva no FIM:
+
+| Escreva | Significa |
+|---|---|
+| `✅` ou `veio` | veio |
+| `❌`, `faltou` ou `não veio` | faltou |
+| `🏋️`, `matriculou` ou `fechou` | veio e fechou matrícula |
+
+Exemplo: `Avaliação — Maria Silva ✅`. O painel do dono e esta página leem isso sozinhos (em até 1 minuto) e contam nas taxas. **Não mude o começo do título** ("Avaliação — Nome"): é por ele que o bot reconhece a avaliação.
+
+**Se o Google e o painel discordarem, vale o Google.** E quando alguém anota pelo painel ou por esta página, o bot também escreve o selo no título do evento, então os dois lados ficam iguais.
+
+**Pela página:**
+
 Depois que a avaliação passa, o horário continua na grade (com o nome do cliente). Toque nele e escolha:
 
 - **✅ Veio**

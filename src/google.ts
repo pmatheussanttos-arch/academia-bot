@@ -36,6 +36,8 @@ export interface GoogleAgendaApi {
   removerEvento(agendaId: string, eventoId: string): Promise<void>
   /** Muda o horário de um evento, mantendo o resto (título, WhatsApp...). `descricao` e `privado` só mexem se informados. */
   moverEvento(agendaId: string, eventoId: string, mudanca: MudancaEvento): Promise<void>
+  /** Troca só o título do evento (o painel usa para escrever ✅ ❌ 🏋️ depois da avaliação). */
+  renomearEvento(agendaId: string, eventoId: string, titulo: string): Promise<void>
 }
 
 export interface MudancaEvento {
@@ -220,6 +222,11 @@ export class ClienteGoogleAgenda implements GoogleAgendaApi {
       ...(m.privado ? { extendedProperties: { private: m.privado } } : {}),
     })
     if (!res.ok) await this.falhar(res, 'mover evento')
+  }
+
+  async renomearEvento(agendaId: string, eventoId: string, titulo: string): Promise<void> {
+    const res = await this.requisitar('PATCH', `${URL_API}/${encodeURIComponent(agendaId)}/events/${encodeURIComponent(eventoId)}`, { summary: titulo })
+    if (!res.ok) await this.falhar(res, 'renomear evento')
   }
 
   async obterEvento(agendaId: string, eventoId: string): Promise<EventoAgenda | null> {

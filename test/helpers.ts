@@ -136,6 +136,13 @@ export class GoogleFalso implements GoogleAgendaApi {
     this.movidos.push({ eventoId, mudanca: m })
   }
 
+  async renomearEvento(_agendaId: string, eventoId: string, titulo: string): Promise<void> {
+    if (this.falhar) throw new Error('google fora do ar')
+    const e = this.eventos.find((x) => x.id === eventoId)
+    if (!e) throw new Error('evento não existe')
+    e.titulo = titulo
+  }
+
   async obterEvento(_agendaId: string, eventoId: string): Promise<EventoAgenda | null> {
     this.chamadas.obter++
     if (this.falhar) throw new Error('google fora do ar')

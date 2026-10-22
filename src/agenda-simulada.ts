@@ -35,6 +35,11 @@ export class AgendaSimulada implements GoogleAgendaApi {
     if (m.privado) e.privado = { ...e.privado, ...m.privado }
   }
 
+  async renomearEvento(_agendaId: string, eventoId: string, titulo: string): Promise<void> {
+    const e = this.eventos.find((x) => x.id === eventoId)
+    if (e) e.titulo = titulo
+  }
+
   /** Quantos eventos "agendados" existem nesta conversa de teste. */
   get total(): number {
     return this.eventos.length

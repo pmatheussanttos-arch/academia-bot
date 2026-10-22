@@ -99,8 +99,35 @@ export function ehAvaliacao(titulo: string): boolean {
   return /^avaliacao(?=$|[\s—–-])/i.test(SEM_ACENTO(titulo.trim()))
 }
 
+/**
+ * A equipe pode marcar direto no Google Agenda se o cliente veio, escrevendo no FIM do título: ✅ (veio), ❌ (faltou) ou
+ * 🏋️ (veio e matriculou); ou as palavras "veio", "não veio", "faltou", "matriculou". Ex.: "Avaliação — Maria Silva ✅".
+ */
+const MARCA_NO_TITULO = /\s*[-–—([]?\s*(✅|✔️?|❌|✖️?|🏋️?|n[ãa]o\s+veio|veio|faltou|matriculou|fechou)\s*[)\]]?\s*$/iu
+const EMOJI_DA_MARCA: Record<StatusComparecimento, string> = { veio: '✅', faltou: '❌', matriculou: '🏋️' }
+
+export function lerMarcaDoTitulo(titulo: string): { limpo: string; status?: StatusComparecimento } {
+  const t = titulo.trim()
+  const m = MARCA_NO_TITULO.exec(t)
+  if (!m || m.index === 0) return { limpo: t }
+  const marca = m[1]!.toLowerCase()
+  const status: StatusComparecimento = /^(✅|✔)|^veio$/u.test(marca) ? 'veio' : /^(❌|✖)|faltou|n[ãa]o\s+veio/u.test(marca) ? 'faltou' : 'matriculou'
+  return { limpo: t.slice(0, m.index).trimEnd(), status }
+}
+
+/** O título com a marca trocada (ou tirada, com `null`). */
+export function comMarcaNoTitulo(titulo: string, status: StatusComparecimento | null): string {
+  const base = lerMarcaDoTitulo(titulo).limpo
+  return status ? `${base} ${EMOJI_DA_MARCA[status]}` : base
+}
+
+/** O que sabemos da presença: a marca no título do Google (quem manda) ou, na falta dela, o que foi anotado no painel. */
+export function statusDoEvento(e: EventoAgenda, marcas: Map<string, Comparecimento>): StatusComparecimento | undefined {
+  return lerMarcaDoTitulo(e.titulo).status ?? marcas.get(e.id)?.status
+}
+
 export function nomeDoCliente(titulo: string): string {
-  const m = /^avalia[cç][aã]o\s*[—–-]\s*(.+)$/i.exec(titulo.trim())
+  const m = /^avalia[cç][aã]o\s*[—–-]\s*(.+)$/i.exec(lerMarcaDoTitulo(titulo).limpo)
   return m ? m[1]!.trim() : ''
 }
 
@@ -170,7 +197,7 @@ export class PainelAgenda {
       marcadoPor: avaliacao ? quemMarcou(e) : '',
       inicio: e.inicio!,
       fim: e.fim!,
-      ...(avaliacao && marcas.get(e.id) ? { comparecimento: marcas.get(e.id)!.status } : {}),
+      ...(avaliacao && statusDoEvento(e, marcas) ? { comparecimento: statusDoEvento(e, marcas)! } : {}),
     }
   }
 
@@ -380,11 +407,15 @@ export class PainelAgenda {
         throw new ErroPainel('Só dá para anotar presença em avaliações ("Avaliação — Nome").', 403, 'nao_e_avaliacao')
       }
       const cliente = nomeDoCliente(ev.titulo) || 'Cliente'
+      // O Google é quem manda: primeiro escreve no título do evento (aparece na agenda de todo mundo); só então anota no banco.
+      const novoTitulo = comMarcaNoTitulo(ev.titulo, p.status === 'limpar' ? null : p.status)
       if (p.status === 'limpar') {
+        if (novoTitulo !== ev.titulo) await api.renomearEvento(agendaId, p.eventoId, novoTitulo)
         this.store.desfazerComparecimento(p.eventoId)
         return { mensagem: `Anotação de ${cliente} apagada.` }
       }
       if (ev.inicio > this.agoraMs()) throw new ErroPainel('Essa avaliação ainda não aconteceu.', 400, 'futuro')
+      if (novoTitulo !== ev.titulo) await api.renomearEvento(agendaId, p.eventoId, novoTitulo)
       this.store.marcarComparecimento({ eventoId: p.eventoId, inicio: ev.inicio, cliente, whatsapp: whatsappDoEvento(ev) ?? '', status: p.status, por: p.por }, this.agoraMs())
       console.log(`[agenda] ${p.por} anotou: ${cliente} ${p.status}`)
       const dito = { veio: 'veio à avaliação', faltou: 'faltou', matriculou: 'veio e fechou matrícula' }[p.status]

@@ -41,6 +41,10 @@ No topo de todas as abas há um selo verde ou vermelho com o estado do WhatsApp.
 ### 🧪 Testar
 Conversa de teste com o GFIT, sem WhatsApp. Nada vai para clientes, para a agenda nem para a lista de matrículas.
 
+## Quem veio e quem faltou: pode marcar no Google Agenda
+
+Os professores podem marcar direto no Google Agenda, escrevendo no fim do título do evento: `✅` (veio), `❌` (faltou) ou `🏋️` (veio e matriculou), ou as palavras `veio`, `faltou`, `matriculou`. O painel lê isso sozinho (a leitura da agenda é guardada por 1 minuto). Marcar pelo painel também escreve o selo no título, então os dois lugares ficam iguais. Se discordarem, vale o Google. Detalhes no AGENDA-PROFESSORES.md.
+
 ## Rotinas automáticas (aba Bot)
 
 | Rotina | Padrão | O que faz |
