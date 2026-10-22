@@ -9,6 +9,7 @@ Dois jeitos de conectar ao WhatsApp, escolhidos pela variável `WHATSAPP_MODO`:
 ## O que a versão faz
 
 - Atende como **GFIT**, conduzindo a conversa em etapas curtas: pergunta o nome, o que a pessoa quer e a frequência antes de falar em preço.
+- **Fecha a matrícula pela conversa:** recolhe nome completo, telefone, e-mail e nascimento, registra o pedido, informa a chave Pix (ou manda passar o cartão na recepção) e avisa a equipe, que lança na plataforma. Nunca confirma que o pagamento caiu.
 - Responde dúvidas sobre planos, preços, horários, endereço, cancelamento e renovação, só com o que está no `instrucoes.md`.
 - Quando não sabe, ou quando o assunto é cancelamento, desconto, lesão, reclamação etc., chama a equipe: no modo `cloud` entrega um link para o WhatsApp da recepção; no modo `qr` (mesmo número da academia) avisa que a equipe responde ali mesmo.
 - No modo `qr`, **percebe quando a equipe responde pelo celular e se cala** com aquele cliente.
@@ -21,7 +22,7 @@ Dois jeitos de conectar ao WhatsApp, escolhidos pela variável `WHATSAPP_MODO`:
 - **Aula experimental:** é sempre um pedido; a equipe confirma o horário na conversa. Não entra no Google Agenda.
 - Não muda nem cancela visitas já marcadas: isso vai para a equipe.
 - Não consulta mensalidade nem cadastro do NextFit.
-- Não gera cobrança nem confirma pagamento: só informa a chave Pix e avisa que a equipe confere.
+- Não gera cobrança nem confirma pagamento: informa a chave Pix, registra a matrícula e avisa que a equipe confere o comprovante.
 - Não envia lembretes de vencimento.
 
 ## 1. Testar sem WhatsApp (faça isto primeiro)
@@ -109,6 +110,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/agent.ts` | Conversa com o Claude e as ferramentas (chamar a equipe, consultar horários, agendar) |
 | `src/painel-agenda.ts`, `src/pagina-agenda.ts` | Agenda dos professores (página /agenda) |
 | `src/status.ts` | Página de status para o monitor externo avisar quedas |
+| `src/matricula.ts` | Matrícula pela conversa: conferência dos dados e aviso à equipe |
 | `agenda.json` | **Você edita**: dias e horários das visitas, períodos (manhã/tarde/noite), antecedência, feriados |
 | `mensagens.md` | **Você edita**: textos de "avaliação agendada" e "pedido recebido" |
 | `src/agendamento.ts`, `src/agenda.ts`, `src/google.ts` | Regras de horário e integração com o Google Agenda |
@@ -116,7 +118,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 302 testes sem gastar nada |
+| `test/` | `npm test` roda 319 testes sem gastar nada |
 
 ## Próximas fases
 

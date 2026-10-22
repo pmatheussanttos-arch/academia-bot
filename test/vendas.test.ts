@@ -80,12 +80,18 @@ describe('como os preços são explicados', () => {
     assert.match(i, /Planos VIP\*\* — incluem \*\*avaliação física grátis\*\* e \*\*acesso livre\*\*/)
   })
 
-  it('formas de pagamento: só cartão e à vista, sem Pix nem boleto', () => {
-    assert.match(i, /fale só em \*\*cartão\*\* e \*\*à vista\*\*\. Não invente Pix, boleto nem outra forma/)
-    assert.match(i, /- \*\*Formas de pagamento:\*\* cartão \(parcelado nos planos VIP\) e à vista/)
-    assert.doesNotMatch(i, /35\.950\.235\/0001-29/, 'a chave Pix saiu das instruções')
-    assert.doesNotMatch(i, /chave Pix/i)
-    assert.doesNotMatch(i, /renova pelo Pix/i)
+  it('formas de pagamento: Pix e cartão, e nada além disso', () => {
+    assert.match(i, /só \*\*Pix\*\* e \*\*cartão\*\*\. Não invente boleto, débito automático nem outra forma/)
+    assert.match(i, /a chave é o CNPJ 35\.950\.235\/0001-29/)
+    assert.match(i, /\*\*Cartão:\*\* é passado \*\*na recepção da academia\*\*/)
+    assert.match(i, /- \*\*Formas de pagamento:\*\* \*\*Pix\*\* \(chave CNPJ: 35\.950\.235\/0001-29\) e \*\*cartão\*\*/)
+    assert.equal((i.match(/boleto/gi) ?? []).length, 1, 'a palavra "boleto" só aparece na proibição')
+    assert.match(i, /Não invente boleto/)
+  })
+
+  it('a chave Pix não é solta no meio da conversa: só na hora de fechar', () => {
+    assert.match(i, /Só passe a chave na hora de fechar a matrícula, usando a ferramenta `registrar_matricula`/)
+    assert.match(i, /não solte a chave no meio da conversa/)
   })
 
   it('o que NÃO podia mudar continua igual: GoNutri, Desconto Fácil, avaliação e parcerias', () => {

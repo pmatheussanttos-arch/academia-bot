@@ -25,6 +25,19 @@ export interface AcaoAgendaSalva extends AcaoAgenda {
   ts: number
 }
 
+export interface MatriculaSalva {
+  id: number
+  ts: number
+  chat: string
+  nome: string
+  telefone: string
+  email: string
+  nascimento: string
+  plano: string
+  pagamento: string
+  observacao: string
+}
+
 export interface HandoffAtivo {
   chat: string
   ate: number
@@ -84,11 +97,40 @@ export class Store {
         detalhe TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_registro_agenda_ts ON registro_agenda (ts);
+      CREATE TABLE IF NOT EXISTS matriculas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts INTEGER NOT NULL,
+        chat TEXT NOT NULL,
+        nome TEXT NOT NULL,
+        telefone TEXT NOT NULL,
+        email TEXT NOT NULL,
+        nascimento TEXT NOT NULL,
+        plano TEXT NOT NULL,
+        pagamento TEXT NOT NULL,
+        observacao TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_matriculas_ts ON matriculas (ts);
       CREATE TABLE IF NOT EXISTS ajustes (
         chave TEXT PRIMARY KEY,
         valor TEXT NOT NULL
       );
     `)
+  }
+
+  // --- Matrículas feitas pela conversa (a equipe lança na plataforma) ---
+
+  registrarMatricula(m: Omit<MatriculaSalva, 'id' | 'ts'>, ts = Date.now()): number {
+    const r = this.db
+      .prepare('INSERT INTO matriculas (ts, chat, nome, telefone, email, nascimento, plano, pagamento, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(ts, m.chat, m.nome, m.telefone, m.email, m.nascimento, m.plano, m.pagamento, m.observacao)
+    return Number(r.lastInsertRowid)
+  }
+
+  /** As matrículas mais recentes, da mais nova para a mais antiga. */
+  matriculas(limite = 100): MatriculaSalva[] {
+    return this.db
+      .prepare('SELECT id, ts, chat, nome, telefone, email, nascimento, plano, pagamento, observacao FROM matriculas ORDER BY id DESC LIMIT ?')
+      .all(limite) as unknown as MatriculaSalva[]
   }
 
   // --- Ajustes guardados no banco (sobrevivem a deploys) ---
@@ -241,6 +283,7 @@ export class Store {
     this.db.prepare('DELETE FROM handoff WHERE ate < ?').run(agora)
     this.db.prepare('DELETE FROM agendamentos WHERE inicio < ?').run(corte)
     this.db.prepare('DELETE FROM registro_agenda WHERE ts < ?').run(corte)
+    this.db.prepare('DELETE FROM matriculas WHERE ts < ?').run(corte)
   }
 
   fechar(): void {

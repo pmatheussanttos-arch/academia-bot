@@ -5,7 +5,9 @@ import type { EstadoWhatsapp } from './baileys.js'
 import { tratarMensagem, type AtendimentoDeps } from './atendimento.js'
 import type { Config, ConfigWhatsapp } from './config.js'
 import type { FilaPorChave } from './fila.js'
-import type { HandoffAtivo } from './store.js'
+import { rotulo } from './agenda.js'
+import { nascimentoBonito } from './matricula.js'
+import type { HandoffAtivo, MatriculaSalva } from './store.js'
 import { AcessoAgenda } from './acesso-agenda.js'
 import { paginaAgenda } from './pagina-agenda.js'
 import { ErroPainel, PainelAgenda } from './painel-agenda.js'
@@ -99,6 +101,29 @@ function cartaoAgendaProfessores(estado: { ligada: boolean; codigo?: string; pro
     <p class="dica">Quem tiver o link entra sem senha: mande só para a equipe. "Gerar outro link" derruba o endereço antigo na hora.</p></section>`
 }
 
+/** Matrículas feitas pelo WhatsApp que a equipe ainda precisa lançar na plataforma. */
+function cartaoMatriculas(lista: MatriculaSalva[], fuso: string): string {
+  if (lista.length === 0) {
+    return `<section class="matriculas"><div class="titulo">📝 Matrículas pelo WhatsApp</div><p>Nenhuma por enquanto. Quando um cliente fechar um plano pela conversa, os dados aparecem aqui.</p></section>`
+  }
+  const linhas = lista
+    .slice(0, 20)
+    .map((m) => {
+      const q = rotulo(m.ts, fuso)
+      const dados = [
+        `WhatsApp: <a href="https://wa.me/${esc(m.telefone)}" target="_blank" rel="noopener noreferrer">+${esc(m.telefone)}</a>`,
+        m.email ? `E-mail: ${esc(m.email)}` : '',
+        m.nascimento ? `Nascimento: ${esc(nascimentoBonito(m.nascimento))}` : '',
+        m.observacao ? `Obs.: ${esc(m.observacao)}` : '',
+      ].filter(Boolean).join(' · ')
+      return `<li><div><b>${esc(m.nome)}</b> — ${esc(m.plano)} <span class="forma">${m.pagamento === 'pix' ? 'Pix' : 'cartão'}</span><br><span>${dados}</span><br><span>${esc(q.dia)} às ${esc(q.hora)}</span></div></li>`
+    })
+    .join('')
+  return `<section class="matriculas"><div class="titulo">📝 Matrículas pelo WhatsApp (${lista.length})</div>
+    <p>Lance estes cadastros na plataforma da academia. No Pix, confira o comprovante antes.</p>
+    <ul>${linhas}</ul>${lista.length > 20 ? '<p class="dica">Mostrando as 20 mais recentes.</p>' : ''}</section>`
+}
+
 /** Cartão com o endereço de status, para o dono colar num monitor gratuito e receber e-mail se o WhatsApp cair. */
 function cartaoMonitor(origem: string, toleranciaMin: number): string {
   const url = `${origem}/status/whatsapp`
@@ -108,7 +133,7 @@ function cartaoMonitor(origem: string, toleranciaMin: number): string {
     <p class="dica">Ele responde "tudo certo" enquanto o WhatsApp está conectado e acusa erro quando está fora do ar há mais de ${toleranciaMin} minutos (quedas curtas e reinícios não alarmam). Passo a passo no arquivo AVISO-QUEDA.md.</p></section>`
 }
 
-function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = '', profsHtml = '', monitorHtml = ''): string {
+function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = '', profsHtml = '', monitorHtml = '', matriculasHtml = ''): string {
   let miolo: string
   if (estado.status === 'conectado') {
     miolo = `<div class="ok">✅ Conectado${estado.numero ? ` como <b>+${esc(estado.numero)}</b>` : ''}</div>
@@ -160,6 +185,14 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .profs .dica{color:#666;font-size:.85rem}
       .profs .link{width:100%;font:inherit;font-size:.9rem;padding:10px;border:1px solid #c3d2f5;border-radius:8px;background:#fff;color:#222}
       .profs .botoes button.ligar{background:#2459b8}
+      .matriculas{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#f3f0fb;border:1px solid #d4c9ee}
+      .matriculas .titulo{font-weight:700;font-size:1.05rem}
+      .matriculas p{margin:8px 0;color:#333}
+      .matriculas .dica{color:#666;font-size:.85rem}
+      .matriculas ul{list-style:none;margin:8px 0 0;padding:0}
+      .matriculas li{padding:10px 0;border-top:1px solid #d4c9ee}
+      .matriculas li span{color:#555;font-size:.85rem}
+      .matriculas .forma{display:inline-block;font-size:.75rem;font-weight:700;color:#5b3fa8;border:1px solid #5b3fa8;border-radius:999px;padding:1px 8px}
       .monitor{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#fff8e8;border:1px solid #f0d9a8}
       .monitor .titulo{font-weight:700;font-size:1.05rem}
       .monitor p{margin:8px 0;color:#333}
@@ -167,7 +200,7 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .monitor .link{width:100%;font:inherit;font-size:.9rem;padding:10px;border:1px solid #f0d9a8;border-radius:8px;background:#fff;color:#222}
       .profs .botoes .abrir{display:inline-flex;align-items:center;font-weight:600;padding:12px 14px;min-height:44px;border-radius:8px;background:#0a7a2f;color:#fff;text-decoration:none}
     </style></head><body>
-    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}${profsHtml}${monitorHtml}
+    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}${matriculasHtml}${profsHtml}${monitorHtml}
     </body></html>`
 }
 
@@ -281,6 +314,7 @@ export function criarApp(deps: AppDeps): Hono {
           cartaoConversas(store.handoffsAtivos(), token!, deps.agenda.fuso),
           cartaoAgendaProfessores(acesso.estado(), token!, origem),
           cartaoMonitor(origem, cfg.toleranciaQuedaMin),
+          cartaoMatriculas(store.matriculas(50), deps.agenda.fuso),
         ),
       )
     })
@@ -395,6 +429,11 @@ export function criarApp(deps: AppDeps): Hono {
     const token = c.req.query('token')
     if (dados.voltar === 'conectar' && token) return c.redirect(`/conectar?token=${encodeURIComponent(token)}`, 303)
     return c.json({ liberado })
+  })
+
+  app.get('/admin/matriculas', (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    return c.json({ matriculas: store.matriculas(200) })
   })
 
   // Ligar, desligar e trocar o endereço da agenda dos professores (só o dono, com o ADMIN_TOKEN).
