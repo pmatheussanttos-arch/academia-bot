@@ -3,6 +3,8 @@ import { serve } from '@hono/node-server'
 import { criarClienteClaude } from './agent.js'
 import { criarServicoAgenda } from './agendamento.js'
 import { criarApp } from './app.js'
+import { Metricas } from './metricas.js'
+import { Rotinas } from './rotinas.js'
 import { DriverBaileys } from './baileys.js'
 import { tratarMensagem } from './atendimento.js'
 import { carregarConfig, ehNumeroDaEquipe, exigirWhatsapp } from './config.js'
@@ -128,6 +130,21 @@ const deps = {
 }
 
 const app = criarApp(deps)
+
+// Rotinas (resumo semanal, lembrete ao cliente, alerta de gasto): cada uma decide sozinha se já é hora e se já fez.
+{
+  const rotinas = new Rotinas({
+    store,
+    cfg,
+    servico: agenda,
+    metricas: new Metricas({ store, cfg, servico: agenda, estado: deps.whatsappEstado }),
+    notificar,
+    wa,
+    conectado: driver ? () => driver.estado().status === 'conectado' : undefined,
+  })
+  setTimeout(() => void rotinas.tick(), 60_000).unref()
+  setInterval(() => void rotinas.tick(), 5 * 60_000).unref()
+}
 
 if (driver) {
   // Cada mensagem humana renova a janela: o bot só volta depois de `silencioHoras` sem nenhuma interação da equipe.

@@ -324,3 +324,51 @@ describe('aba Conversas e aba Bot', () => {
     assert.match(await pagina(t.app, 'hoje'), /Gasto da IA em 80% do limite do mês/)
   })
 })
+
+describe('rotinas automáticas no painel (aba Bot)', () => {
+  it('mostra o estado de cada rotina: resumo ligado, lembrete desligado, aviso de gasto', async () => {
+    const html = await pagina(montar().app, 'bot')
+    assert.match(html, /Resumo da semana para a equipe<\/b> <span class="status veio">LIGADO/)
+    assert.match(html, /Lembrete ao cliente, 1 dia antes da avaliação<\/b> <span class="status faltou">DESLIGADO/)
+    assert.match(html, /risco de o WhatsApp bloquear/)
+    assert.match(html, /Aviso de gasto da IA<\/b> <span class="status veio">LIGADO/)
+  })
+
+  it('um clique liga o lembrete e o painel volta para a aba Bot', async () => {
+    const t = montar()
+    const res = await t.app.request(`/admin/rotinas?${T}`, form({ rotina: 'lembrete', ligar: '1', voltar: 'conectar', aba: 'bot' }))
+    assert.equal(res.status, 303)
+    assert.match(decodeURIComponent(res.headers.get('location')!), /^\/conectar\?token=segredo-admin&aba=bot&aviso=Lembrete ao cliente ligado\./)
+    assert.equal(t.store.lerAjuste('rotina_lembrete'), '1')
+    assert.match(await pagina(t.app, 'bot'), /Lembrete ao cliente, 1 dia antes da avaliação<\/b> <span class="status veio">LIGADO/)
+    await t.app.request(`/admin/rotinas?${T}`, form({ rotina: 'lembrete', ligar: '0' }))
+    assert.equal(t.store.lerAjuste('rotina_lembrete'), '0')
+  })
+
+  it('desliga o resumo semanal', async () => {
+    const t = montar()
+    await t.app.request(`/admin/rotinas?${T}`, json({ rotina: 'resumo', ligar: '0' }))
+    assert.equal(t.store.lerAjuste('rotina_resumo'), '0')
+  })
+
+  it('rotina inventada é recusada; sem token ninguém muda nada', async () => {
+    const t = montar()
+    assert.equal((await t.app.request(`/admin/rotinas?${T}`, json({ rotina: 'explodir', ligar: '1' }))).status, 400)
+    assert.equal((await t.app.request('/admin/rotinas', json({ rotina: 'lembrete', ligar: '1' }))).status, 401)
+    assert.equal((await t.app.request('/admin/rotinas?token=errado', json({ rotina: 'lembrete', ligar: '1' }))).status, 401)
+    assert.equal(t.store.lerAjuste('rotina_lembrete'), undefined)
+  })
+
+  it('modo Cloud: o lembrete não pode ser ligado', async () => {
+    const t = montar(CONECTADO, { WHATSAPP_MODO: 'cloud' })
+    const base = await t.app.request(`/admin/rotinas?${T}`, json({ rotina: 'lembrete', ligar: '1' }))
+    assert.equal(base.status, 400)
+    assert.equal(t.store.lerAjuste('rotina_lembrete'), undefined)
+  })
+
+  it('gasto sem limite: o painel explica como ligar o aviso', async () => {
+    const html = await pagina(montar(CONECTADO, { GASTO_LIMITE_MENSAL: '0' }).app, 'bot')
+    assert.match(html, /Aviso de gasto da IA<\/b> <span class="status faltou">DESLIGADO/)
+    assert.match(html, /Defina GASTO_LIMITE_MENSAL/)
+  })
+})

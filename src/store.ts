@@ -258,6 +258,14 @@ export class Store {
     return this.db.prepare(`SELECT 1 FROM mensagens WHERE chat IN (${marcas}) LIMIT 1`).get(...numeros) !== undefined
   }
 
+  /** Qual destas formas do número já tem conversa com o bot (a mesma que o WhatsApp usa para ele). */
+  chatComConversa(numeros: string[]): string | undefined {
+    if (numeros.length === 0) return undefined
+    const marcas = numeros.map(() => '?').join(',')
+    const r = this.db.prepare(`SELECT chat FROM mensagens WHERE chat IN (${marcas}) ORDER BY ts DESC LIMIT 1`).get(...numeros) as unknown as { chat: string } | undefined
+    return r?.chat
+  }
+
   /** Quando foi a última mensagem do cliente (papel user) ou do bot (papel assistant). */
   ultimaMensagem(papel: Papel): number | undefined {
     const r = this.db.prepare('SELECT MAX(ts) AS m FROM mensagens WHERE papel = ?').get(papel) as unknown as { m: number | null }
@@ -334,6 +342,10 @@ export class Store {
 
   registrarLembrete(eventoId: string, resultado: string, ts = Date.now()): void {
     this.db.prepare('INSERT OR IGNORE INTO lembretes (evento_id, ts, resultado) VALUES (?, ?, ?)').run(eventoId, ts, resultado.slice(0, 200))
+  }
+
+  atualizarLembrete(eventoId: string, resultado: string): void {
+    this.db.prepare('UPDATE lembretes SET resultado = ? WHERE evento_id = ?').run(resultado.slice(0, 200), eventoId)
   }
 
   contarLembretes(desde: number, prefixo?: string): number {

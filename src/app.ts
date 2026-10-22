@@ -7,6 +7,7 @@ import type { Config, ConfigWhatsapp } from './config.js'
 import type { FilaPorChave } from './fila.js'
 import { Metricas } from './metricas.js'
 import { abaValida, paginaPainel } from './painel-dono.js'
+import { definirRotina, rotinaLigada } from './rotinas.js'
 import { AcessoAgenda } from './acesso-agenda.js'
 import { paginaAgenda } from './pagina-agenda.js'
 import { paginaTeste } from './pagina-teste.js'
@@ -152,6 +153,11 @@ export function criarApp(deps: AppDeps): Hono {
           profs: acesso.estado(),
           matriculas: store.matriculas(50),
           toleranciaQuedaMin: cfg.toleranciaQuedaMin,
+          rotinas: {
+            resumo: { ligada: rotinaLigada(store, 'resumo'), ...(store.lerAjuste('resumo_ultimo') ? { ultimo: store.lerAjuste('resumo_ultimo')!.split('-').reverse().join('/') } : {}) },
+            lembrete: { ligada: rotinaLigada(store, 'lembrete'), enviadosNaSemana: store.contarLembretes(Date.now() - 7 * 86_400_000, 'enviado'), disponivel: cfg.modoWhatsapp === 'qr' },
+            gastoLimiteReais: cfg.gastoLimiteMensalReais,
+          },
           aviso: c.req.query('aviso')?.slice(0, 200),
         }),
       )
@@ -323,6 +329,21 @@ export function criarApp(deps: AppDeps): Hono {
   app.get('/admin/matriculas', (c) => {
     if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
     return c.json({ matriculas: store.matriculas(200) })
+  })
+
+  // Liga e desliga as rotinas automáticas (resumo semanal e lembrete ao cliente).
+  app.post('/admin/rotinas', async (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    const dados = await lerDados(c)
+    const rotina = dados.rotina
+    if (rotina !== 'resumo' && rotina !== 'lembrete') return c.json({ erro: 'informe "rotina": "resumo" ou "lembrete"' }, 400)
+    const ligar = dados.ligar === '1' || dados.ligar === 1 || dados.ligar === true
+    if (rotina === 'lembrete' && ligar && cfg.modoWhatsapp !== 'qr') {
+      return voltarAoPainel(c, dados, 'O lembrete só funciona no modo QR.') ?? c.json({ erro: 'o lembrete só funciona no modo QR' }, 400)
+    }
+    definirRotina(store, rotina, ligar)
+    console.log(`[rotinas] ${rotina} ${ligar ? 'ligado' : 'desligado'} pelo painel`)
+    return voltarAoPainel(c, dados, `${rotina === 'resumo' ? 'Resumo da semana' : 'Lembrete ao cliente'} ${ligar ? 'ligado' : 'desligado'}.`) ?? c.json({ rotina, ligada: ligar })
   })
 
   // "Já lancei na plataforma": a recepção marca (ou desmarca) uma matrícula feita pelo WhatsApp.

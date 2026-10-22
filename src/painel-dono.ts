@@ -22,6 +22,12 @@ export function abaValida(v: unknown): Aba | undefined {
 
 export const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 
+export interface EstadoRotinas {
+  resumo: { ligada: boolean; ultimo?: string }
+  lembrete: { ligada: boolean; enviadosNaSemana: number; disponivel: boolean }
+  gastoLimiteReais: number
+}
+
 export interface DadosPainel {
   token: string
   aba: Aba
@@ -36,8 +42,7 @@ export interface DadosPainel {
   profs: { ligada: boolean; codigo?: string; professores: string[] }
   matriculas: MatriculaSalva[]
   toleranciaQuedaMin: number
-  /** Cartão das rotinas automáticas (resumo semanal, lembrete ao cliente). Vem pronto de quem o monta. */
-  rotinasHtml?: string
+  rotinas?: EstadoRotinas
   /** Frase curta do resultado da última ação (ex.: "Maria veio à avaliação. Anotado!"). */
   aviso?: string
 }
@@ -366,12 +371,24 @@ function conexao(d: DadosPainel): string {
   return `<div class="aguarde">⏳ ${esc(e.detalhe ?? 'Preparando a conexão…')}</div>`
 }
 
+function cartaoRotinas(d: DadosPainel): string {
+  const r = d.rotinas
+  if (!r) return ''
+  const linha = (nome: 'resumo' | 'lembrete', titulo: string, texto: string, ligada: boolean, disponivel = true) => `<div class="linha"><div><b>${titulo}</b> <span class="status ${ligada ? 'veio' : 'faltou'}">${ligada ? 'LIGADO' : 'DESLIGADO'}</span><p class="dica">${texto}</p></div>${
+    disponivel ? botaoForm(d.token, '/admin/rotinas', { rotina: nome, ligar: ligada ? '0' : '1' }, ligada ? 'Desligar' : 'Ligar', ligada ? 'desligar' : '', d.aba) : ''
+  }</div>`
+  return `<section class="cartao rotinas"><div class="titulo">⏰ Rotinas automáticas</div>
+    ${linha('resumo', 'Resumo da semana para a equipe', `Toda segunda, depois das 8h, o balanço da semana que passou vai no WhatsApp dos números de aviso (NUMEROS_AVISOS).${r.resumo.ultimo ? ` Último envio: ${esc(r.resumo.ultimo)}.` : ''}`, r.resumo.ligada)}
+    ${linha('lembrete', 'Lembrete ao cliente, 1 dia antes da avaliação', `Entre 17h e 20h do dia anterior, o bot lembra o cliente da avaliação. Só para quem já conversou com o bot, no máximo 30 por dia e com pausa entre eles. <b>Atenção:</b> mensagem automática aumenta um pouco o risco de o WhatsApp bloquear o número; por isso começa desligado.${r.lembrete.disponivel ? ` Enviados nos últimos 7 dias: ${r.lembrete.enviadosNaSemana}. O texto fica em mensagens.md (seção lembrete-avaliacao).` : ' Só funciona no modo QR.'}`, r.lembrete.ligada, r.lembrete.disponivel)}
+    <div class="linha"><div><b>Aviso de gasto da IA</b> <span class="status ${r.gastoLimiteReais > 0 ? 'veio' : 'faltou'}">${r.gastoLimiteReais > 0 ? 'LIGADO' : 'DESLIGADO'}</span><p class="dica">${r.gastoLimiteReais > 0 ? `Avisa a equipe no WhatsApp quando o gasto chegar a 80% e a 100% de ${reais(r.gastoLimiteReais)} no mês. Para mudar o limite: variável GASTO_LIMITE_MENSAL na Render.` : 'Defina GASTO_LIMITE_MENSAL na Render (em reais) para ser avisado.'}</p></div></div></section>`
+}
+
 function abaBot(d: DadosPainel): string {
   return `<section class="cartao centro">${conexao(d)}</section>
     ${cartaoPausa(d.pausa, d.token, d.fuso, d.aba)}
     ${cartaoSaude(d)}
     ${cartaoCusto(d)}
-    ${d.rotinasHtml ?? ''}
+    ${cartaoRotinas(d)}
     ${cartaoMonitor(d.origem, d.toleranciaQuedaMin)}`
 }
 

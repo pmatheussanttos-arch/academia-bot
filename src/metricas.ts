@@ -140,6 +140,31 @@ export function custoEmReais(
   return { usd, reais: usd * dolarEmReais }
 }
 
+export interface ResumoSemana {
+  /** Ex.: "12/10 a 18/10". */
+  rotulo: string
+  avaliacoes: { total: number; veio: number; faltou: number; matriculou: number; semAnotar: number }
+  matriculasPeloBot: number
+  conversasNovas: number
+  /** Conversas novas da semana que não precisaram da equipe, em %. */
+  resolvidasPct?: number
+  gastoReais: number
+  /** Matrículas ainda não lançadas na plataforma (hoje). */
+  pendentes: number
+  /** Quantas avaliações já estão marcadas para a semana que começa agora. */
+  marcadasProximaSemana: number
+  agendaOk: boolean
+}
+
+export interface GastoDoMes {
+  reais: number
+  limiteReais: number
+  /** undefined quando o aviso de gasto está desligado (limite 0). */
+  percentual?: number
+  /** AAAA-MM, para o aviso valer uma vez por mês. */
+  mes: string
+}
+
 export interface MetricasDeps {
   store: Store
   cfg: Config
@@ -190,6 +215,62 @@ export class Metricas {
       origem: origemDe(e),
       marcadoPor: marcadoPorDe(e),
       ...(comp.get(e.id) ? { comparecimento: comp.get(e.id)!.status } : {}),
+    }
+  }
+
+  private precoDaIa(): { entrada: number; saida: number } {
+    return this.d.cfg.precosIa ?? PRECOS[this.d.cfg.model] ?? PRECO_DESCONHECIDO
+  }
+
+  /** Quanto a IA já custou neste mês (estimativa) e em que ponto do limite isso está. */
+  gastoDoMes(): GastoDoMes {
+    const { store, cfg, servico } = this.d
+    const hoje = hojeISO(servico.agora(), this.fuso)
+    const mesIni = `${hoje.slice(0, 7)}-01`
+    const { reais } = custoEmReais(store.somaUsoIa(epochLocal(mesIni, '00:00', this.fuso), epochLocal(proximoMes(hoje), '00:00', this.fuso)), this.precoDaIa(), cfg.dolarEmReais)
+    return {
+      reais,
+      limiteReais: cfg.gastoLimiteMensalReais,
+      ...(cfg.gastoLimiteMensalReais > 0 ? { percentual: Math.round((reais / cfg.gastoLimiteMensalReais) * 100) } : {}),
+      mes: hoje.slice(0, 7),
+    }
+  }
+
+  /** O balanço de uma semana fechada (segunda a domingo), para o resumo que vai para a equipe. */
+  async resumoDaSemana(segundaISO: string): Promise<ResumoSemana> {
+    const { store, cfg, servico } = this.d
+    const fimISO = somarDias(segundaISO, 7)
+    const de = epochLocal(segundaISO, '00:00', this.fuso)
+    const ate = epochLocal(fimISO, '00:00', this.fuso)
+    const proximaFim = epochLocal(somarDias(fimISO, 7), '00:00', this.fuso)
+
+    let eventos: EventoAgenda[] = []
+    let agendaOk = servico.googleAgenda !== undefined
+    if (agendaOk) {
+      try {
+        eventos = await this.eventos(de, proximaFim)
+      } catch (err) {
+        agendaOk = false
+        console.error('[resumo] não consegui ler o Google Agenda:', err instanceof Error ? err.message : err)
+      }
+    }
+    const brutas = eventos.filter((e) => e.ocupa && !e.diaInteiro && e.inicio !== undefined && ehAvaliacao(e.titulo))
+    const dela = brutas.filter((e) => e.inicio! >= de && e.inicio! < ate)
+    const marcas = store.comparecimentoDe(dela.map((e) => e.id))
+    const conta = (s: StatusComparecimento) => dela.filter((e) => marcas.get(e.id)?.status === s).length
+    const conversas = store.conversasNovas(de, ate)
+    const chamaram = Math.min(conversas, store.contarChatsComEvento('transferencia', de, ate))
+    const dia = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+    return {
+      rotulo: `${dia(segundaISO)} a ${dia(somarDias(segundaISO, 6))}`,
+      avaliacoes: { total: dela.length, veio: conta('veio'), faltou: conta('faltou'), matriculou: conta('matriculou'), semAnotar: dela.length - dela.filter((e) => marcas.has(e.id)).length },
+      matriculasPeloBot: store.contarMatriculas(de, ate),
+      conversasNovas: conversas,
+      ...(conversas > 0 ? { resolvidasPct: Math.round(((conversas - chamaram) / conversas) * 100) } : {}),
+      gastoReais: custoEmReais(store.somaUsoIa(de, ate), this.precoDaIa(), cfg.dolarEmReais).reais,
+      pendentes: store.matriculas(200).filter((m) => m.lancadaEm === null).length,
+      marcadasProximaSemana: brutas.filter((e) => e.inicio! >= ate && e.inicio! < proximaFim).length,
+      agendaOk,
     }
   }
 
@@ -290,7 +371,7 @@ export class Metricas {
     for (const ts of store.mensagensDosClientes(agora - 30 * 86_400_000)) mensagensPorHora[horaLocal(ts, this.fuso)]!++
 
     // --- custo ---
-    const preco = cfg.precosIa ?? PRECOS[cfg.model] ?? PRECO_DESCONHECIDO
+    const preco = this.precoDaIa()
     const custo = (desde: number, ate: number): CustoIa => {
       const u = store.somaUsoIa(desde, ate)
       return { chamadas: u.chamadas, ...custoEmReais(u, preco, cfg.dolarEmReais) }

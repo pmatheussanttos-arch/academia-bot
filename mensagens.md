@@ -3,7 +3,7 @@
 Estes são os textos que o bot envia ao cliente quando uma avaliação é agendada, quando um pedido de visita é registrado, quando passa a conversa para uma pessoa (seção "transferencia") e quando registra uma matrícula (seções "matricula-pix" e "matricula-cartao" — é nelas que fica a chave Pix).
 A linha {confirmacao} vira o link para a recepção (quando NUMERO_RECEPCAO está preenchido) ou o aviso de que a equipe confirma.
 Pode editar o texto à vontade. Mantenha os títulos que começam com "##" e as palavras entre chaves, como {dia} e {hora}:
-o bot troca por dados reais. As linhas {linha_valor} e {linha_mensalidade} vêm das três últimas seções.
+o bot troca por dados reais. A seção "lembrete-avaliacao" é o lembrete do dia anterior (ligado pelo painel, aba Bot); aceita {nome}, {dia} e {hora}. As linhas {linha_valor} e {linha_mensalidade} vêm das três últimas seções.
 
 ## avaliacao-agendada
 Perfeito! Avaliação agendada! ✅
@@ -90,3 +90,7 @@ Prontinho, {nome}! Seu cadastro já está registrado aqui ✅
 💳 Pagamento no cartão
 
 O cartão é passado na recepção da academia. Pode vir no seu horário que a equipe finaliza tudo com você. Qualquer dúvida, tô aqui!
+
+## lembrete-avaliacao
+Oi, {nome}! Passando para lembrar da sua avaliação aqui na GarageFit: {dia}, às {hora} 😊
+Qualquer imprevisto, é só me avisar por aqui. Te esperamos!
