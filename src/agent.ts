@@ -22,6 +22,8 @@ export interface AgenteDeps {
   notificar: Notificador
   agenda: ServicoAgenda
   agora?: () => Date
+  /** Recebe a linha de log de cada ferramenta usada (a página de teste mostra isso nos bastidores). */
+  aoUsarFerramenta?: (linha: string) => void
 }
 
 export const MSG_HANDOFF_PADRAO = 'Ok, vou te transferir para um atendente. Aguarde um instante, que já vai te responder! 😊'
@@ -336,7 +338,9 @@ export async function responder(deps: AgenteDeps, chat: string, nome: string | u
         if (bloco.type !== 'tool_use') continue
         if (bloco.name === 'chamar_humano') encaminhou = true
         const r = await executarFerramenta(deps, chat, nome, bloco)
-        console.log(registroDeFerramenta(bloco, r))
+        const linha = registroDeFerramenta(bloco, r)
+        console.log(linha)
+        deps.aoUsarFerramenta?.(linha)
         resultados.push(r)
       }
       mensagens.push({ role: 'user', content: resultados })

@@ -25,7 +25,11 @@ Dois jeitos de conectar ao WhatsApp, escolhidos pela variável `WHATSAPP_MODO`:
 - Não gera cobrança nem confirma pagamento: informa a chave Pix, registra a matrícula e avisa que a equipe confere o comprovante.
 - Não envia lembretes de vencimento.
 
-## 1. Testar sem WhatsApp (faça isto primeiro)
+## 0. Testar pelo navegador, sem WhatsApp
+
+Com o bot no ar, abra a página `/teste?token=SEU_ADMIN_TOKEN` (ou o cartão "Testar o bot sem WhatsApp" na página de conexão) e converse com o GFIT como se fosse um cliente. Nada vai para o WhatsApp, para a agenda do Google nem para a lista de matrículas. Veja o **TESTAR-SEM-WHATSAPP.md**.
+
+## 1. Testar sem WhatsApp no terminal
 
 Precisa do Node.js 22.13 ou mais novo e de uma chave da Claude API (console.anthropic.com).
 
@@ -111,6 +115,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/painel-agenda.ts`, `src/pagina-agenda.ts` | Agenda dos professores (página /agenda) |
 | `src/status.ts` | Página de status para o monitor externo avisar quedas |
 | `src/matricula.ts` | Matrícula pela conversa: conferência dos dados e aviso à equipe |
+| `src/sala-de-teste.ts`, `src/pagina-teste.ts` | Página /teste: conversa com o bot no navegador, isolada do mundo real |
 | `agenda.json` | **Você edita**: dias e horários das visitas, períodos (manhã/tarde/noite), antecedência, feriados |
 | `mensagens.md` | **Você edita**: textos de "avaliação agendada" e "pedido recebido" |
 | `src/agendamento.ts`, `src/agenda.ts`, `src/google.ts` | Regras de horário e integração com o Google Agenda |
@@ -118,7 +123,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 319 testes sem gastar nada |
+| `test/` | `npm test` roda 340 testes sem gastar nada |
 
 ## Próximas fases
 

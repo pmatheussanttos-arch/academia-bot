@@ -10,6 +10,8 @@ import { nascimentoBonito } from './matricula.js'
 import type { HandoffAtivo, MatriculaSalva } from './store.js'
 import { AcessoAgenda } from './acesso-agenda.js'
 import { paginaAgenda } from './pagina-agenda.js'
+import { paginaTeste } from './pagina-teste.js'
+import { SalaDeTeste } from './sala-de-teste.js'
 import { ErroPainel, PainelAgenda } from './painel-agenda.js'
 import { PAUSA_MAX_HORAS, aplicarPausa, descreverPausa, quando } from './pausa.js'
 import { calcularStatus } from './status.js'
@@ -124,6 +126,13 @@ function cartaoMatriculas(lista: MatriculaSalva[], fuso: string): string {
     <ul>${linhas}</ul>${lista.length > 20 ? '<p class="dica">Mostrando as 20 mais recentes.</p>' : ''}</section>`
 }
 
+/** Link para conversar com o assistente pelo navegador, sem WhatsApp. */
+function cartaoTeste(token: string): string {
+  return `<section class="teste"><div class="titulo">🧪 Testar o bot sem WhatsApp</div>
+    <p>Converse com o GFIT aqui no navegador, como se fosse um cliente. Nada vai para o WhatsApp, para a agenda nem para a lista de matrículas de verdade.</p>
+    <div class="botoes"><a class="abrir" href="/teste?token=${encodeURIComponent(token)}" target="_blank" rel="noopener noreferrer">Abrir o teste</a></div></section>`
+}
+
 /** Cartão com o endereço de status, para o dono colar num monitor gratuito e receber e-mail se o WhatsApp cair. */
 function cartaoMonitor(origem: string, toleranciaMin: number): string {
   const url = `${origem}/status/whatsapp`
@@ -133,7 +142,7 @@ function cartaoMonitor(origem: string, toleranciaMin: number): string {
     <p class="dica">Ele responde "tudo certo" enquanto o WhatsApp está conectado e acusa erro quando está fora do ar há mais de ${toleranciaMin} minutos (quedas curtas e reinícios não alarmam). Passo a passo no arquivo AVISO-QUEDA.md.</p></section>`
 }
 
-function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = '', profsHtml = '', monitorHtml = '', matriculasHtml = ''): string {
+function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: string, pausaHtml = '', conversasHtml = '', profsHtml = '', monitorHtml = '', matriculasHtml = '', testeHtml = ''): string {
   let miolo: string
   if (estado.status === 'conectado') {
     miolo = `<div class="ok">✅ Conectado${estado.numero ? ` como <b>+${esc(estado.numero)}</b>` : ''}</div>
@@ -193,6 +202,10 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .matriculas li{padding:10px 0;border-top:1px solid #d4c9ee}
       .matriculas li span{color:#555;font-size:.85rem}
       .matriculas .forma{display:inline-block;font-size:.75rem;font-weight:700;color:#5b3fa8;border:1px solid #5b3fa8;border-radius:999px;padding:1px 8px}
+      .teste{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#eefaf5;border:1px solid #b5e3d0}
+      .teste .titulo{font-weight:700;font-size:1.05rem}
+      .teste p{margin:8px 0;color:#333}
+      .teste .abrir{display:inline-flex;align-items:center;font-weight:600;padding:12px 14px;min-height:44px;border-radius:8px;background:#0a7a2f;color:#fff;text-decoration:none}
       .monitor{margin-top:20px;padding:16px;border-radius:12px;text-align:left;background:#fff8e8;border:1px solid #f0d9a8}
       .monitor .titulo{font-weight:700;font-size:1.05rem}
       .monitor p{margin:8px 0;color:#333}
@@ -200,7 +213,7 @@ function paginaQr(estado: EstadoWhatsapp, imagemQr: string | undefined, token: s
       .monitor .link{width:100%;font:inherit;font-size:.9rem;padding:10px;border:1px solid #f0d9a8;border-radius:8px;background:#fff;color:#222}
       .profs .botoes .abrir{display:inline-flex;align-items:center;font-weight:600;padding:12px 14px;min-height:44px;border-radius:8px;background:#0a7a2f;color:#fff;text-decoration:none}
     </style></head><body>
-    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}${matriculasHtml}${profsHtml}${monitorHtml}
+    <h1>Assistente da GarageFit</h1>${miolo}${pausaHtml}${conversasHtml}${matriculasHtml}${testeHtml}${profsHtml}${monitorHtml}
     </body></html>`
 }
 
@@ -208,6 +221,7 @@ export function criarApp(deps: AppDeps): Hono {
   const { cfg, store, fila, whatsappCfg } = deps
   const app = new Hono()
   const acesso = new AcessoAgenda(store, cfg.professores)
+  const sala = new SalaDeTeste(cfg, deps.claude)
   const painel = new PainelAgenda(deps.agenda, store)
 
   app.onError((err, c) => {
@@ -315,6 +329,7 @@ export function criarApp(deps: AppDeps): Hono {
           cartaoAgendaProfessores(acesso.estado(), token!, origem),
           cartaoMonitor(origem, cfg.toleranciaQuedaMin),
           cartaoMatriculas(store.matriculas(50), deps.agenda.fuso),
+          cartaoTeste(token!),
         ),
       )
     })
@@ -429,6 +444,35 @@ export function criarApp(deps: AppDeps): Hono {
     const token = c.req.query('token')
     if (dados.voltar === 'conectar' && token) return c.redirect(`/conectar?token=${encodeURIComponent(token)}`, 303)
     return c.json({ liberado })
+  })
+
+  // --- Teste do bot pelo navegador, sem WhatsApp (só o dono, com o ADMIN_TOKEN) ---
+  app.get('/teste', (c) => {
+    const token = c.req.query('token')
+    if (!autorizado(undefined, token)) return c.text('Acesso negado. Abra esta página com ?token=SEU_ADMIN_TOKEN no final do endereço.', 401)
+    c.header('Cache-Control', 'no-store')
+    c.header('X-Robots-Tag', 'noindex, nofollow')
+    c.header('Referrer-Policy', 'no-referrer')
+    return c.html(paginaTeste(token!))
+  })
+
+  app.post('/teste/enviar', async (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    const dados = (await c.req.json().catch(() => ({}))) as { sessao?: unknown; texto?: unknown }
+    const id = typeof dados.sessao === 'string' && /^[\w-]{8,80}$/.test(dados.sessao) ? dados.sessao : ''
+    const texto = typeof dados.texto === 'string' ? dados.texto.trim().slice(0, 2000) : ''
+    if (!id) return c.json({ erro: 'sessão inválida: recarregue a página' }, 400)
+    if (!texto) return c.json({ erro: 'escreva uma mensagem' }, 400)
+    return c.json(await sala.enviar(id, texto))
+  })
+
+  app.post('/teste/novo', async (c) => {
+    if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
+    const dados = (await c.req.json().catch(() => ({}))) as { sessao?: unknown }
+    const id = typeof dados.sessao === 'string' && /^[\w-]{8,80}$/.test(dados.sessao) ? dados.sessao : ''
+    if (!id) return c.json({ erro: 'sessão inválida: recarregue a página' }, 400)
+    sala.reiniciar(id)
+    return c.json({ ok: true })
   })
 
   app.get('/admin/matriculas', (c) => {
