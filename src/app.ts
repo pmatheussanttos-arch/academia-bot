@@ -217,6 +217,15 @@ export function criarApp(deps: AppDeps): Hono {
     painel.marcar({ data: texto(d.data, 10), hhmm: texto(d.hhmm, 5), nome: texto(d.nome, 80), whatsapp: texto(d.whatsapp, 30), obs: texto(d.obs, 300), professor }),
   )
   acaoAgenda('desmarcar', (d, professor) => painel.desmarcar(texto(d.eventoId, 200), professor))
+  acaoAgenda('comparecimento', async (d, professor) => {
+    const status = d.status
+    if (status !== 'veio' && status !== 'faltou' && status !== 'matriculou' && status !== 'limpar') {
+      throw new ErroPainel('Escolha se o cliente veio, faltou ou matriculou.', 400, 'status')
+    }
+    const r = await painel.comparecimento({ eventoId: texto(d.eventoId, 200), status, por: professor })
+    metricas.esquecerCache()
+    return r
+  })
   acaoAgenda('remarcar', (d, professor) => painel.remarcar({ eventoId: texto(d.eventoId, 200), data: texto(d.data, 10), hhmm: texto(d.hhmm, 5), professor }))
 
   /** Depois de um botão do painel, volta para a mesma aba. Devolve undefined quando a chamada não veio do painel (é a API em JSON). */

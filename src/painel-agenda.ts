@@ -50,6 +50,8 @@ export interface SlotPainel {
   ocupantes: Ocupante[]
   /** Dá para desmarcar/remarcar: é uma avaliação que ainda não começou. */
   podeAlterar: boolean
+  /** Dá para anotar se o cliente veio: é uma avaliação que já começou. */
+  podeAnotar: boolean
 }
 
 export interface DiaPainel {
@@ -209,7 +211,15 @@ export class PainelAgenda {
         const cheio = ocupantes.length >= regras.capacidade
         const estado: EstadoSlot = fechado ? 'fechado' : cheio ? 'ocupado' : inicio <= agora ? 'passado' : 'livre'
         const alteravel = ocupantes.find((o) => o.ehAvaliacao)
-        return { hhmm, inicio, periodo: periodoDe(regras, hhmm), estado, ocupantes, podeAlterar: estado === 'ocupado' && alteravel !== undefined && inicio > agora }
+        return {
+          hhmm,
+          inicio,
+          periodo: periodoDe(regras, hhmm),
+          estado,
+          ocupantes,
+          podeAlterar: estado === 'ocupado' && alteravel !== undefined && inicio > agora,
+          podeAnotar: estado === 'ocupado' && alteravel !== undefined && inicio <= agora,
+        }
       })
       dias.push({ data: dataDia, rotulo: rotulo(epochLocal(dataDia, '12:00', regras.fusoHorario), regras.fusoHorario).dia, curto: `${d}/${m}`, hoje: dataDia === hoje, ...(fechado ? { fechado } : {}), slots })
     }

@@ -167,8 +167,11 @@ export function paginaAgenda(base: string, professores: string[]): string {
     })
   }
 
+  var ROTULO_PRESENCA = { veio: 'veio', faltou: 'faltou', matriculou: 'veio e matriculou' }
+  var ICONE = { veio: '✅ ', faltou: '❌ ', matriculou: '🏋️ ' }
+
   function textoSlot(s) {
-    if (s.estado === 'ocupado') return s.ocupantes.map(function (o) { return o.cliente }).join(', ')
+    if (s.estado === 'ocupado') return s.ocupantes.map(function (o) { return (ICONE[o.comparecimento] || '') + o.cliente }).join(', ')
     if (s.estado === 'fechado') return 'fechado'
     if (s.estado === 'passado') return 'passou'
     return 'livre'
@@ -186,7 +189,7 @@ export function paginaAgenda(base: string, professores: string[]): string {
         (d.fechado ? '<span class="fechado">' + esc(d.fechado) + '</span>' : '') + '</h2><div class="slots">'
       for (var j = 0; j < d.slots.length; j++) {
         var x = d.slots[j]
-        var clicavel = x.estado === 'livre' || x.podeAlterar
+        var clicavel = x.estado === 'livre' || x.podeAlterar || x.podeAnotar
         html += '<button type="button" class="slot ' + x.estado + '" data-dia="' + i + '" data-slot="' + j + '"' +
           (clicavel ? '' : ' disabled') + '><span class="hora">' + esc(x.hhmm) + '</span>' +
           '<span class="quem-slot">' + esc(textoSlot(x)) + '</span></button>'
@@ -275,6 +278,19 @@ export function paginaAgenda(base: string, professores: string[]): string {
       (o.whatsapp ? '<div>WhatsApp: <a href="https://wa.me/' + esc(o.whatsapp) + '" target="_blank" rel="noopener noreferrer">+' + esc(o.whatsapp) + '</a></div>' : '<div>WhatsApp: não informado</div>') +
       '<div>Marcado por: ' + esc(o.marcadoPor || 'não informado') + '</div></div>'
     var acoes = [{ texto: 'Fechar', classe: 'leve', ao: fechar }]
+    if (slot.podeAnotar && o.ehAvaliacao) {
+      corpo += '<p class="pergunta-presenca">' + (o.comparecimento ? 'Anotado: <b>' + esc(ROTULO_PRESENCA[o.comparecimento]) + '</b>. Mudou? Escolha de novo.' : 'O cliente veio?') + '</p>'
+      var anotar = function (status, texto, classe) {
+        acoes.push({ texto: texto, classe: classe, ao: function (b) {
+          if (!exigirProfessor()) return
+          executar(b, pedir('/api/comparecimento', { eventoId: o.id, status: status, professor: estado.professor }))
+        } })
+      }
+      anotar('veio', '✅ Veio', 'leve')
+      anotar('faltou', '❌ Faltou', 'leve')
+      anotar('matriculou', '🏋️ Matriculou', '')
+      if (o.comparecimento) anotar('limpar', 'Apagar anotação', 'leve')
+    }
     if (slot.podeAlterar && o.ehAvaliacao) {
       acoes.push({ texto: 'Remarcar', classe: 'leve', ao: function () {
         if (!exigirProfessor()) return
