@@ -275,6 +275,20 @@ export class Store {
     return r.m ?? undefined
   }
 
+  /**
+   * Clientes cuja última mensagem (entre `desde` e `antes`) ficou sem resposta do bot, fora das conversas
+   * que estão com a equipe de propósito. Se isso aparece com o WhatsApp conectado, o bot pode estar mudo.
+   */
+  clientesSemResposta(desde: number, antes: number, agora = Date.now()): Array<{ chat: string; ts: number }> {
+    return this.db
+      .prepare(
+        `SELECT chat, MAX(CASE WHEN papel = 'user' THEN ts END) AS ts, MAX(CASE WHEN papel = 'assistant' THEN ts END) AS resposta
+         FROM mensagens GROUP BY chat
+         HAVING ts >= ? AND ts <= ? AND (resposta IS NULL OR resposta < ts) AND chat NOT IN (SELECT chat FROM handoff WHERE ate > ?)`,
+      )
+      .all(desde, antes, agora) as unknown as Array<{ chat: string; ts: number }>
+  }
+
   /** Conversas com o bot calado, com o motivo e quando a equipe (ou o bot) assumiu. */
   handoffsParaAcompanhar(agora = Date.now()): HandoffAtivo[] {
     return this.handoffsAtivos(agora)

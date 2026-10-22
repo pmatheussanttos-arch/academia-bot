@@ -51,6 +51,12 @@ export interface Config {
   adminToken?: string
   /** Minutos que o WhatsApp pode ficar fora do ar antes de a página de status virar alarme. */
   toleranciaQuedaMin: number
+  /** Gasto mensal da IA (em reais) a partir do qual a equipe é avisada. 0 desliga o aviso. */
+  gastoLimiteMensalReais: number
+  /** Cotação usada só para estimar o gasto em reais. */
+  dolarEmReais: number
+  /** Preço do modelo por milhão de tokens, em dólar. Vazio = tabela interna (confira em anthropic.com/pricing). */
+  precosIa?: { entrada: number; saida: number }
   /** Nomes que aparecem na lista "quem é você?" da agenda dos professores (AGENDA_PROFESSORES). */
   professores: string[]
   telegram?: { token: string; chatId: string }
@@ -127,6 +133,9 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
     numerosAvisos,
     adminToken: env.ADMIN_TOKEN?.trim() || undefined,
     toleranciaQuedaMin: numero(env.STATUS_TOLERANCIA_MIN, TOLERANCIA_PADRAO_MIN),
+    gastoLimiteMensalReais: env.GASTO_LIMITE_MENSAL?.trim() === '0' ? 0 : numero(env.GASTO_LIMITE_MENSAL, 50),
+    dolarEmReais: numero(env.DOLAR_EM_REAIS, 5.5),
+    precosIa: precosDoAmbiente(env.PRECO_IA),
     professores: lerProfessores(env.AGENDA_PROFESSORES),
     telegram: telegramToken && telegramChat ? { token: telegramToken, chatId: telegramChat } : undefined,
     permitirInstrucoesIncompletas: env.PERMITIR_INSTRUCOES_INCOMPLETAS === '1',
@@ -197,4 +206,10 @@ export function ehNumeroDaEquipe(cfg: Pick<Config, 'numerosAvisos' | 'numerosPer
   if (!numeroNaLista(numero, cfg.numerosAvisos)) return false
   const testando = numeroNaLista(numero, cfg.numerosPermitidos) || (lid !== undefined && numeroNaLista(lid, cfg.numerosPermitidos))
   return !testando
+}
+
+/** PRECO_IA="0.10,0.50": dólares por milhão de tokens (entrada, saída). Valor torto é ignorado e vale a tabela interna. */
+function precosDoAmbiente(bruto: string | undefined): { entrada: number; saida: number } | undefined {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*[,;]\s*(\d+(?:\.\d+)?)\s*$/.exec(bruto ?? '')
+  return m ? { entrada: Number(m[1]), saida: Number(m[2]) } : undefined
 }
