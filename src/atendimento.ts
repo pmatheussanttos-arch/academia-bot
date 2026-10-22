@@ -7,6 +7,8 @@ export interface AtendimentoDeps extends AgenteDeps {
   wa: ClienteWhatsapp
   /** Alerta técnico com limite de repetição (ex.: token do WhatsApp expirado). */
   avisarErro: (chave: string, texto: string) => Promise<void>
+  /** Espera entre duas mensagens seguidas do assistente (os testes usam 0). */
+  pausaEntreMensagensMs?: number
 }
 
 export const MSG_LIMITE = 'Você enviou muitas mensagens em pouco tempo 😅 Aguarde um pouco e tente de novo, ou fale com a recepção da academia.'
@@ -38,6 +40,32 @@ const NOMES_TIPO: Record<string, string> = {
 
 const MAX_ENTRADA = 2000
 
+/** Marca que o assistente escreve para mandar duas mensagens seguidas, em vez de um texto só. */
+export const MARCA_NOVA_MENSAGEM = '[[nova mensagem]]'
+const MAX_PARTES = 3
+
+/**
+ * Quebra a resposta do assistente nas marcas `[[nova mensagem]]`, para o cliente receber mensagens
+ * curtas em sequência, como uma pessoa escreveria. Marcas soltas no meio do texto são apagadas,
+ * para nunca aparecerem para o cliente.
+ */
+export function dividirEmMensagens(texto: string): string[] {
+  const partes = texto
+    .split(/^[ \t]*\[\[nova mensagem\]\][ \t]*$/gim)
+    .map((p) =>
+      p
+        .replace(/\[\[nova mensagem\]\]/gi, ' ') // marca solta no meio da frase: some sem deixar rastro
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim(),
+    )
+    .filter((p) => p !== '')
+  if (partes.length <= MAX_PARTES) return partes
+  // Mais do que isso seria o assistente picotando demais: junta o excesso na última mensagem.
+  return [...partes.slice(0, MAX_PARTES - 1), partes.slice(MAX_PARTES - 1).join('\n\n')]
+}
+
 function avaliarLimite(deps: AgenteDeps, chat: string): 'ok' | 'avisar' | 'silenciar' {
   const { cfg, store } = deps
   const agora = (deps.agora ?? (() => new Date()))().getTime()
@@ -48,9 +76,14 @@ function avaliarLimite(deps: AgenteDeps, chat: string): 'ok' | 'avisar' | 'silen
 }
 
 async function enviar(deps: AtendimentoDeps, msg: MensagemRecebida, texto: string): Promise<void> {
+  const partes = dividirEmMensagens(texto)
+  if (partes.length === 0) return
   try {
-    await deps.wa.enviarTexto(msg.from, texto)
-    deps.store.adicionarMensagem(msg.from, 'assistant', texto)
+    for (const [i, parte] of partes.entries()) {
+      if (i > 0) await new Promise((r) => setTimeout(r, deps.pausaEntreMensagensMs ?? 1200)) // parece conversa, não robô
+      await deps.wa.enviarTexto(msg.from, parte)
+    }
+    deps.store.adicionarMensagem(msg.from, 'assistant', partes.join('\n\n'))
   } catch (err) {
     const detalhe = err instanceof Error ? err.message : String(err)
     console.error(`[atendimento] falha ao enviar para ${msg.from}: ${detalhe}`)

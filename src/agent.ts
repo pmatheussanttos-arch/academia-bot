@@ -112,7 +112,7 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
       type: 'object',
       properties: {
         tipo: TIPO_VISITA,
-        nome: { type: 'string', description: 'Nome que o cliente informou para a agenda. Se ele não disse, use o nome do perfil.' },
+        nome: { type: 'string', description: 'Nome que o cliente escreveu nesta conversa. Nunca invente nem use o nome do perfil do WhatsApp: se ainda não souber, pergunte antes.' },
         data: { type: 'string', description: 'Data no formato AAAA-MM-DD.' },
         horario: { type: 'string', description: 'Horário de início no formato HH:MM, igual a um dos horários devolvidos por consultar_horarios.' },
         observacao: { type: 'string', description: 'Algo que a equipe precise saber (plano de interesse, por exemplo). Use "" se não houver.' },

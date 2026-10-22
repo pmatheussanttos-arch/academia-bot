@@ -8,6 +8,7 @@ Dois jeitos de conectar ao WhatsApp, escolhidos pela variável `WHATSAPP_MODO`:
 
 ## O que a versão faz
 
+- Atende como **GFIT**, conduzindo a conversa em etapas curtas: pergunta o nome, o que a pessoa quer e a frequência antes de falar em preço.
 - Responde dúvidas sobre planos, preços, horários, endereço, cancelamento e renovação, só com o que está no `instrucoes.md`.
 - Quando não sabe, ou quando o assunto é cancelamento, desconto, lesão, reclamação etc., chama a equipe: no modo `cloud` entrega um link para o WhatsApp da recepção; no modo `qr` (mesmo número da academia) avisa que a equipe responde ali mesmo.
 - No modo `qr`, **percebe quando a equipe responde pelo celular e se cala** com aquele cliente.
@@ -115,7 +116,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 283 testes sem gastar nada |
+| `test/` | `npm test` roda 302 testes sem gastar nada |
 
 ## Próximas fases
 
