@@ -6,7 +6,7 @@ import { carregarMensagens, renderizar } from './mensagens.js'
 import { carregarInstrucoes, limparNome, montarSistema, situacaoDaConversa } from './prompt.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Notificador } from './notify.js'
-import type { Store } from './store.js'
+import type { Store, UsoIa } from './store.js'
 
 /** Só o que usamos do SDK, para os testes poderem trocar por um falso. */
 export interface ClienteClaude {
@@ -24,6 +24,8 @@ export interface AgenteDeps {
   agora?: () => Date
   /** Recebe a linha de log de cada ferramenta usada (a página de teste mostra isso nos bastidores). */
   aoUsarFerramenta?: (linha: string) => void
+  /** Onde anotar o consumo da IA de cada chamada. Padrão: o banco desta conversa (a sala de teste aponta para o banco real). */
+  registrarUso?: (u: UsoIa) => void
 }
 
 export const MSG_HANDOFF_PADRAO = 'Ok, vou te transferir para um atendente. Aguarde um instante, que já vai te responder! 😊'
@@ -173,6 +175,7 @@ export async function encaminharParaHumano(
 ): Promise<void> {
   const { cfg, store, notificar } = deps
   if (cfg.handoffHoras > 0) store.definirHandoff(chat, cfg.handoffHoras, motivo)
+  anotar(() => store.registrarEvento('transferencia', chat, motivo))
   await notificar(
     [
       '🔔 Cliente precisa de atendimento humano',
@@ -193,6 +196,15 @@ function historicoParaMensagens(historico: ReturnType<Store['historico']>): Anth
   const msgs: Anthropic.MessageParam[] = historico.map((m) => ({ role: m.papel, content: m.conteudo }))
   while (msgs.length > 0 && msgs[0]?.role !== 'user') msgs.shift() // a conversa tem que começar pelo cliente
   return msgs
+}
+
+/** Números do painel nunca podem atrapalhar o atendimento: qualquer falha ao anotar é ignorada. */
+export function anotar(fn: () => void): void {
+  try {
+    fn()
+  } catch (err) {
+    console.error('[painel] não consegui anotar:', err instanceof Error ? err.message : err)
+  }
 }
 
 const campo = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '')
@@ -252,6 +264,7 @@ async function executarFerramenta(
       planoVip: entrada.plano_vip === true,
     })
     if (!r.ok) return resultado(bloco, r.motivo, true)
+    anotar(() => deps.store.registrarEvento('avaliacao_bot', chat, `${tipo} ${campo(entrada.data, 10)} ${campo(entrada.horario, 5)}${r.agendada ? '' : ' (sem agenda)'}`))
     const situacao = r.agendada
       ? 'AGENDADO: a avaliação já está na agenda da academia.'
       : 'REGISTRADO, mas ainda NÃO está agendado: a equipe vai confirmar o horário. Não diga que está agendado nem confirmado.'
@@ -278,6 +291,7 @@ async function executarFerramenta(
     if (!v.ok) return resultado(bloco, v.motivo, true)
 
     deps.store.registrarMatricula({ chat, ...v.dados }, agora.getTime())
+    anotar(() => deps.store.registrarEvento('matricula', chat, v.dados.plano, agora.getTime()))
     await deps.notificar(avisoDeMatricula(v.dados, chat))
     console.log(`[matrícula] ${v.dados.nome} | ${v.dados.plano} | ${v.dados.pagamento}`)
 
@@ -322,6 +336,13 @@ export async function responder(deps: AgenteDeps, chat: string, nome: string | u
       tools: FERRAMENTAS,
       messages: mensagens,
       output_config: { effort: cfg.effort },
+    })
+
+    anotar(() => {
+      const u = resposta.usage
+      const uso: UsoIa = { modelo: cfg.model, entrada: u.input_tokens ?? 0, saida: u.output_tokens ?? 0, cacheLeitura: u.cache_read_input_tokens ?? 0, cacheEscrita: u.cache_creation_input_tokens ?? 0 }
+      if (deps.registrarUso) deps.registrarUso(uso)
+      else store.registrarUsoIa(uso, agora.getTime())
     })
 
     if (resposta.stop_reason === 'refusal') {

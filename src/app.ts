@@ -221,7 +221,7 @@ export function criarApp(deps: AppDeps): Hono {
   const { cfg, store, fila, whatsappCfg } = deps
   const app = new Hono()
   const acesso = new AcessoAgenda(store, cfg.professores)
-  const sala = new SalaDeTeste(cfg, deps.claude)
+  const sala = new SalaDeTeste(cfg, deps.claude, Date.now, (u) => store.registrarUsoIa(u))
   const painel = new PainelAgenda(deps.agenda, store)
 
   app.onError((err, c) => {

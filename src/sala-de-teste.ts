@@ -6,7 +6,7 @@ import type { ClienteClaude } from './agent.js'
 import { tratarMensagem, type AtendimentoDeps } from './atendimento.js'
 import type { Config } from './config.js'
 import { carregarMensagens } from './mensagens.js'
-import { Store } from './store.js'
+import { Store, type UsoIa } from './store.js'
 
 /**
  * Conversa de teste com o assistente, sem WhatsApp. Cada sessão é um mundo à parte: banco na memória,
@@ -50,6 +50,8 @@ export class SalaDeTeste {
     private cfg: Config,
     private claude: ClienteClaude,
     private agora: () => number = Date.now,
+    /** A conversa de teste é isolada, mas gasta de verdade: o consumo da IA vai para o banco real, para entrar na conta. */
+    private registrarUso?: (u: UsoIa) => void,
   ) {}
 
   /** Configuração do teste: sem filtro de números, sem equipe, sem limite apertado. O resto é idêntico ao de verdade. */
@@ -163,6 +165,7 @@ export class SalaDeTeste {
       avisarErro: async (_chave, t) => void s.avisos.push(`⚠️ ${t}`),
       pausaEntreMensagensMs: 0,
       aoUsarFerramenta: (linha) => void s.ferramentas.push(linha),
+      ...(this.registrarUso ? { registrarUso: this.registrarUso } : {}),
     }
 
     await tratarMensagem(deps, { wamid: `teste-${randomUUID()}`, from: s.chat, nome: '', tipo: 'text', texto })

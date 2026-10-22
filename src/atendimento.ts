@@ -1,5 +1,5 @@
 import { ehNumeroDaEquipe, remetentePermitido } from './config.js'
-import { encaminharParaHumano, msgErroTecnico, responder, type AgenteDeps } from './agent.js'
+import { anotar, encaminharParaHumano, msgErroTecnico, responder, type AgenteDeps } from './agent.js'
 import { linkRecepcao } from './recepcao.js'
 import type { ClienteWhatsapp, MensagemRecebida } from './whatsapp.js'
 
@@ -112,6 +112,11 @@ export function tirarPerguntaRepetida(resposta: string, anteriores: string[]): s
   return normalizarFrase(resto).length >= 15 ? resto : resposta
 }
 
+/** A resposta é a frase de "essa informação eu não tenho": entra na lista de dúvidas que a equipe pode ensinar ao bot. */
+export function ehSemResposta(resposta: string): boolean {
+  return /essa informa[cç][aã]o eu n[aã]o tenho/i.test(resposta)
+}
+
 async function enviar(deps: AtendimentoDeps, msg: MensagemRecebida, texto: string): Promise<void> {
   const partes = dividirEmMensagens(texto)
   if (partes.length === 0) return
@@ -184,6 +189,7 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
       resposta = msgErroTecnico(cfg)
     }
     const anteriores = store.historico(msg.from, 12).filter((m) => m.papel === 'assistant').map((m) => m.conteudo)
+    if (ehSemResposta(resposta)) anotar(() => store.registrarEvento('sem_resposta', msg.from, msg.texto?.trim() ?? ''))
     const semRepetir = tirarPerguntaRepetida(resposta, anteriores)
     if (semRepetir !== resposta) console.log(`[atendimento] tirei uma pergunta repetida do fim da resposta para +${msg.from}`)
     await enviar(deps, msg, semRepetir)
