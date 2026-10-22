@@ -5,7 +5,7 @@ Uma página dentro do próprio bot, onde você conversa com o GFIT pelo navegado
 ## Como abrir
 
 1. Abra o atalho da área de trabalho (a página de conexão).
-2. Role até o cartão **"🧪 Testar o bot sem WhatsApp"** e toque em **"Abrir o teste"**.
+2. Toque na aba **"🧪 Testar"**. A conversa abre ali mesmo (ou toque em **"Abrir em tela cheia"**).
 
 Ou digite direto no navegador, trocando `SEU-ENDERECO` e `SEU_ADMIN_TOKEN`:
 
