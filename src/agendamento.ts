@@ -222,6 +222,11 @@ export class ServicoAgenda {
       const anterior = store.agendamentoAtivo(p.chat, agora)
       if (anterior) {
         const vivo = await google!.obterEvento(agendaId!, anterior.eventoId)
+        if (vivo && anterior.inicio === slot.inicio) {
+          // O cliente pediu de novo o mesmo horário que já está na agenda (repetiu a mensagem, ou o aviso anterior se perdeu):
+          // confirma outra vez, sem criar outro evento e sem mandar a conversa para a equipe à toa.
+          return { ok: true, agendada: true, mensagem: this.mensagem('avaliacao-agendada', p, slot) }
+        }
         if (vivo) {
           const r = rotulo(anterior.inicio, agenda.fusoHorario)
           return {

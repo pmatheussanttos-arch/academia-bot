@@ -1,10 +1,11 @@
 import { diaDaSemana, hojeISO, limitesDoDia, rotulo, somarDias } from './agenda.js'
 import type { ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
-import { normalizarNumero } from './config.js'
+import { normalizarNumero, numeroNaLista } from './config.js'
 import { carregarMensagens, renderizar } from './mensagens.js'
 import type { Metricas, ResumoSemana } from './metricas.js'
 import type { Notificador } from './notify.js'
+import { AUTOMATICAS_POR_DIA, enviadasHoje, pediuParaParar, podeEnviarAutomatica, registrarAutomaticaEnviada } from './automaticas.js'
 import { ehAvaliacao, nomeDoCliente, segundaDaSemana, whatsappDoEvento } from './painel-agenda.js'
 import type { Store } from './store.js'
 import type { ClienteWhatsapp } from './whatsapp.js'
@@ -19,10 +20,11 @@ import type { ClienteWhatsapp } from './whatsapp.js'
  * - Aviso de gasto da IA: a 80% e a 100% do limite do mês.
  */
 
-export type NomeRotina = 'resumo' | 'lembrete'
+export type NomeRotina = 'resumo' | 'lembrete' | 'alerta_espera' | 'retomada'
 
-const CHAVE: Record<NomeRotina, string> = { resumo: 'rotina_resumo', lembrete: 'rotina_lembrete' }
-const PADRAO: Record<NomeRotina, boolean> = { resumo: true, lembrete: false }
+const CHAVE: Record<NomeRotina, string> = { resumo: 'rotina_resumo', lembrete: 'rotina_lembrete', alerta_espera: 'rotina_alerta_espera', retomada: 'rotina_retomada' }
+// Só o que fala com a equipe nasce ligado. O que escreve para cliente por conta própria nasce desligado (risco de bloqueio).
+const PADRAO: Record<NomeRotina, boolean> = { resumo: true, lembrete: false, alerta_espera: true, retomada: false }
 
 export function rotinaLigada(store: Store, nome: NomeRotina): boolean {
   const v = store.lerAjuste(CHAVE[nome])
@@ -36,9 +38,6 @@ export function definirRotina(store: Store, nome: NomeRotina, ligada: boolean): 
 export const HORA_RESUMO = 8
 export const HORA_LEMBRETE_DE = 17
 export const HORA_LEMBRETE_ATE = 20
-export const LEMBRETES_POR_DIA = 30
-/** Pausa entre dois lembretes: mensagens em rajada são o que o WhatsApp mais estranha. */
-export const INTERVALO_LEMBRETES_MS = 12_000
 
 export const LEMBRETE_PADRAO = 'Oi, {nome}! Passando para lembrar da sua avaliação aqui na GarageFit: {dia}, às {hora} 😊\nQualquer imprevisto, é só me avisar por aqui. Te esperamos!'
 
@@ -51,8 +50,8 @@ export interface RotinasDeps {
   wa: Pick<ClienteWhatsapp, 'enviarTexto'>
   /** O WhatsApp está conectado agora? (só existe no modo QR) */
   conectado?: () => boolean
-  esperar?: (ms: number) => Promise<void>
-  intervaloLembretesMs?: number
+  /** Sorteio do intervalo entre mensagens automáticas (os testes fixam). */
+  aleatorio?: () => number
 }
 
 const reais = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
@@ -160,7 +159,8 @@ export class Rotinas {
 
   /**
    * Lembrete da avaliação de amanhã, das 17h às 20h, só para quem já conversou com o bot. Desligado por padrão.
-   * Devolve quantos lembretes saíram.
+   * Sai no máximo UM por chamada (a próxima só depois do intervalo de 1 a 5 minutos) e dentro do teto diário
+   * compartilhado com as outras mensagens automáticas. Devolve quantos saíram (0 ou 1).
    */
   async lembretes(): Promise<number> {
     const { store, cfg, servico, wa } = this.d
@@ -172,14 +172,12 @@ export class Rotinas {
     if (!g) return 0
     if (this.d.conectado && !this.d.conectado()) return 0
     if (store.pausa(this.agoraMs())) return 0 // assistente pausado: a equipe está cuidando, nada automático sai
+    if (!podeEnviarAutomatica(store, servico).ok) return 0
 
     const hoje = hojeISO(servico.agora(), this.fuso)
     const { de, ate } = limitesDoDia(servico.regras, somarDias(hoje, 1))
     const doDia = (await g.api.listarEventos(g.agendaId, de, ate)).filter((e) => e.ocupa && !e.diaInteiro && e.inicio !== undefined && ehAvaliacao(e.titulo)).sort((a, b) => a.inicio! - b.inicio!)
 
-    const inicioDoHoje = limitesDoDia(servico.regras, hoje).de
-    let enviadosHoje = store.contarLembretes(inicioDoHoje, 'enviado')
-    let saiu = 0
     for (const e of doDia) {
       if (store.lembreteRegistrado(e.id)) continue
       const numero = whatsappDoEvento(e)
@@ -192,12 +190,18 @@ export class Rotinas {
         store.registrarLembrete(e.id, 'pulado: nunca conversou com o bot', this.agoraMs())
         continue
       }
+      if (numeroNaLista(chat, cfg.numerosAvisos)) {
+        store.registrarLembrete(e.id, 'pulado: número da equipe', this.agoraMs())
+        continue
+      }
+      if (pediuParaParar(store.historico(chat, 300).filter((m) => m.papel === 'user').map((m) => m.conteudo))) {
+        store.registrarLembrete(e.id, 'pulado: pediu para não receber mensagens', this.agoraMs())
+        continue
+      }
       if (store.emHandoff(chat, this.agoraMs())) {
         store.registrarLembrete(e.id, 'pulado: a equipe está na conversa', this.agoraMs())
         continue
       }
-      if (enviadosHoje >= LEMBRETES_POR_DIA) break // teto diário: melhor perder um lembrete do que mandar em rajada
-      if (saiu > 0) await (this.d.esperar ?? ((ms) => new Promise((r) => setTimeout(r, ms))))(this.d.intervaloLembretesMs ?? INTERVALO_LEMBRETES_MS)
 
       const nome = nomeDoCliente(e.titulo).split(' ')[0] ?? ''
       const texto = this.textoDoLembrete(nome, e.inicio!)
@@ -206,14 +210,14 @@ export class Rotinas {
         await wa.enviarTexto(chat, texto)
         store.adicionarMensagem(chat, 'assistant', texto, this.agoraMs()) // o bot sabe do que o cliente está falando se ele responder
         store.atualizarLembrete(e.id, 'enviado')
-        enviadosHoje++
-        saiu++
-        console.log('[rotinas] lembrete de avaliação enviado')
+        registrarAutomaticaEnviada(store, servico, this.d.aleatorio)
+        console.log(`[rotinas] lembrete de avaliação enviado (${enviadasHoje(store, servico)}/${AUTOMATICAS_POR_DIA} automáticas hoje)`)
+        return 1
       } catch (err) {
         store.atualizarLembrete(e.id, `falhou: ${err instanceof Error ? err.message : String(err)}`)
         console.error('[rotinas] não consegui enviar o lembrete:', err instanceof Error ? err.message : err)
       }
     }
-    return saiu
+    return 0
   }
 }

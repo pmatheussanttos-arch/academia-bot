@@ -30,6 +30,11 @@ export interface Agenda {
   diasMaximoFuturo: number
   /** Por dia da semana, pares [primeiro horário, último horário] (ambos incluídos). */
   janelas: Record<DiaSemana, Array<[string, string]>>
+  /**
+   * Horário de funcionamento da academia (a equipe está lá): por dia da semana, pares [abre, fecha). Usado pelos avisos e
+   * lembretes automáticos, que só saem com a equipe presente. Sem isto, valem as janelas das visitas.
+   */
+  funcionamento?: Record<DiaSemana, Array<[string, string]>>
   /** Datas (AAAA-MM-DD) sem visitas, como feriados. */
   diasFechados: string[]
   /** Faixas do dia usadas para filtrar os horários oferecidos (pares [primeiro, último], ambos incluídos). */
@@ -66,6 +71,20 @@ export function carregarAgenda(caminho: string): Agenda {
       return [par[0], par[1]] as [string, string]
     })
   }
+  let funcionamento: Record<DiaSemana, Array<[string, string]>> | undefined
+  if (a.funcionamento !== undefined) {
+    funcionamento = {} as Record<DiaSemana, Array<[string, string]>>
+    for (const dia of DIAS) {
+      const lista = a.funcionamento?.[dia] ?? []
+      if (!Array.isArray(lista)) erro(`"funcionamento.${dia}" precisa ser uma lista`)
+      funcionamento[dia] = lista.map((par) => {
+        if (!Array.isArray(par) || par.length !== 2 || !HHMM.test(par[0]) || !HHMM.test(par[1]) || minutos(par[0]) >= minutos(par[1])) {
+          return erro(`"funcionamento.${dia}" tem um intervalo inválido (use ["05:00","12:00"]: abre e fecha)`)
+        }
+        return [par[0], par[1]] as [string, string]
+      })
+    }
+  }
   const periodos = {} as Record<Periodo, [string, string]>
   for (const p of PERIODOS) {
     const par = ((a.periodos as Partial<Record<Periodo, unknown>> | undefined)?.[p] ?? PERIODOS_PADRAO[p]) as [string, string]
@@ -90,9 +109,26 @@ export function carregarAgenda(caminho: string): Agenda {
     antecedenciaMin: inteiro(a.antecedenciaMin ?? 0, 'antecedenciaMin', 0),
     diasMaximoFuturo: inteiro(a.diasMaximoFuturo, 'diasMaximoFuturo', 1),
     janelas,
+    ...(funcionamento ? { funcionamento } : {}),
     diasFechados: diasFechados as string[],
     periodos,
   }
+}
+
+/** A academia está funcionando neste instante? (dia fechado/feriado conta como fechada) */
+export function abertoEm(agenda: Agenda, instante: number): boolean {
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: agenda.fusoHorario, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(instante))
+  const get = (t: string) => partes.find((p) => p.type === t)?.value ?? ''
+  const dataISO = `${get('year')}-${get('month')}-${get('day')}`
+  if (agenda.diasFechados.includes(dataISO)) return false
+  const agoraMin = Number(get('hour')) * 60 + Number(get('minute'))
+  const faixas = (agenda.funcionamento ?? agenda.janelas)[diaDaSemana(dataISO)]
+  return faixas.some(([de, ate]) => agoraMin >= minutos(de) && agoraMin < minutos(ate))
+}
+
+/** Hora cheia (0-23) no fuso da academia. */
+export function horaLocalDe(agenda: Agenda, instante: number): number {
+  return Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: agenda.fusoHorario }).format(new Date(instante))) % 24
 }
 
 /** Em que período do dia cai um horário (undefined se estiver fora de todas as faixas). */

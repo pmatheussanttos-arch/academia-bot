@@ -291,6 +291,7 @@ export function criarApp(deps: AppDeps): Hono {
     const numero = typeof dados.numero === 'string' ? dados.numero.replace(/\D/g, '') : ''
     if (!numero) return c.json({ erro: 'informe "numero"' }, 400)
     const liberado = store.liberarHandoff(numero)
+    store.registrarEvento('equipe_respondeu', numero, 'devolvida ao bot pelo painel')
     if (liberado) console.log(`[pausa] conversa de +${numero} devolvida ao bot pelo painel`)
     const voltou = voltarAoPainel(c, dados)
     if (voltou) return voltou

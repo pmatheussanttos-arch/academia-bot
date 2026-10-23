@@ -4,6 +4,7 @@ import { criarClienteClaude } from './agent.js'
 import { criarServicoAgenda } from './agendamento.js'
 import { criarApp } from './app.js'
 import { Metricas } from './metricas.js'
+import { Acompanhamento } from './acompanhamento.js'
 import { Rotinas } from './rotinas.js'
 import { DriverBaileys } from './baileys.js'
 import { tratarMensagem } from './atendimento.js'
@@ -144,6 +145,18 @@ const app = criarApp(deps)
   })
   setTimeout(() => void rotinas.tick(), 60_000).unref()
   setInterval(() => void rotinas.tick(), 5 * 60_000).unref()
+
+  // Conversas paradas: aviso à equipe (ligado) e lembrete ao cliente (desligado até o dono ligar no painel). Olha a cada minuto.
+  const acompanhamento = new Acompanhamento({
+    store,
+    cfg,
+    servico: agenda,
+    notificar,
+    wa,
+    conectado: driver ? () => driver.estado().status === 'conectado' : undefined,
+  })
+  setTimeout(() => void acompanhamento.tick(), 45_000).unref()
+  setInterval(() => void acompanhamento.tick(), 60_000).unref()
 }
 
 if (driver) {
@@ -158,12 +171,14 @@ if (driver) {
       if (ehNumeroDaEquipe(cfg, numero)) return // conversa com quem recebe os avisos: não é um cliente
       // O celular da academia escreveu na conversa: o bot sai dela e só volta depois de um tempo sem ninguém da equipe.
       store.definirHandoff(numero, silencioHoras, transferido ? 'Transferido pela equipe.' : 'A equipe respondeu pelo WhatsApp.')
+      store.registrarEvento('equipe_respondeu', numero, transferido ? 'transferido' : 'respondeu') // encerra a espera do cliente (avisos e lembretes)
       if (transferido) console.log(`[pausa] conversa de +${numero} marcada como "transferido": o bot volta após ${silencioHoras}h sem mensagem da equipe`)
       if (texto) store.adicionarMensagem(numero, 'assistant', texto)
     },
     liberar: (numero) => {
       if (ehNumeroDaEquipe(cfg, numero)) return
       const estava = store.liberarHandoff(numero)
+      store.registrarEvento('equipe_respondeu', numero, 'devolvida ao bot')
       console.log(`[pausa] conversa de +${numero} devolvida ao bot pela palavra "retomar"${estava ? '' : ' (o bot já estava respondendo)'}`)
     },
     comando: async (comando, responder) => {

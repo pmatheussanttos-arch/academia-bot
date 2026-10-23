@@ -4,7 +4,8 @@ import { carregarAgenda, epochLocal } from '../src/agenda.js'
 import { ServicoAgenda } from '../src/agendamento.js'
 import { carregarMensagens } from '../src/mensagens.js'
 import { Metricas } from '../src/metricas.js'
-import { LEMBRETES_POR_DIA, Rotinas, definirRotina, rotinaLigada, textoDoResumo, variantesDoNumero } from '../src/rotinas.js'
+import { AUTOMATICAS_POR_DIA, INTERVALO_MIN_MS } from '../src/automaticas.js'
+import { Rotinas, definirRotina, rotinaLigada, textoDoResumo, variantesDoNumero } from '../src/rotinas.js'
 import { Store } from '../src/store.js'
 import { GoogleFalso, criarConfigDeTeste } from './helpers.js'
 
@@ -29,7 +30,6 @@ function montar(extra: Record<string, string> = {}, inicio = em('2026-10-19', '0
   })
   const avisos: string[] = []
   const enviadas: Array<{ para: string; texto: string }> = []
-  const esperas: number[] = []
   const estado = { conectado: true, falharEnvio: false as boolean | ((para: string) => boolean) }
   const metricas = new Metricas({ store, cfg, servico, cacheMs: 0 })
   const rotinas = new Rotinas({
@@ -46,9 +46,9 @@ function montar(extra: Record<string, string> = {}, inicio = em('2026-10-19', '0
       },
     },
     conectado: () => estado.conectado,
-    esperar: async (ms) => void esperas.push(ms),
+    aleatorio: () => 0, // intervalo mínimo (1 min), para o teste andar o relógio de pouco em pouco
   })
-  return { relogio, google, store, cfg, rotinas, metricas, avisos, enviadas, esperas, estado }
+  return { relogio, google, store, cfg, rotinas, metricas, avisos, enviadas, estado }
 }
 
 function aval(google: GoogleFalso, data: string, hhmm: string, cliente: string, whatsapp?: string): string {
@@ -303,18 +303,48 @@ describe('lembrete ao cliente (dia anterior)', () => {
     assert.equal(await t.rotinas.lembretes(), 0)
   })
 
-  it('teto de 30 por dia e pausa entre os envios (nunca antes do primeiro)', async () => {
+  it('no máximo UM por vez, com intervalo entre eles, e no máximo 10 por dia', async () => {
     const t = pronto()
-    for (let i = 0; i < LEMBRETES_POR_DIA + 5; i++) {
+    for (let i = 0; i < AUTOMATICAS_POR_DIA + 5; i++) {
       const chat = `55119${String(10000000 + i)}`
       t.store.adicionarMensagem(chat, 'user', 'oi', SEXTA_17H30 - 1000)
       aval(t.google, '2026-10-17', '10:00', `Cliente ${i}`, chat)
     }
-    assert.equal(await t.rotinas.lembretes(), LEMBRETES_POR_DIA)
-    assert.equal(t.enviadas.length, LEMBRETES_POR_DIA)
-    assert.equal(t.esperas.length, LEMBRETES_POR_DIA - 1)
-    assert.ok(t.esperas.every((ms) => ms >= 5000))
-    assert.equal(await t.rotinas.lembretes(), 0, 'no mesmo dia, o teto já foi atingido')
+    assert.equal(await t.rotinas.lembretes(), 1, 'um por chamada, mesmo com vários esperando')
+    assert.equal(await t.rotinas.lembretes(), 0, 'sem esperar o intervalo, nada')
+    t.relogio.agora += INTERVALO_MIN_MS - 1
+    assert.equal(await t.rotinas.lembretes(), 0, 'faltou 1 ms')
+    t.relogio.agora += 1
+    assert.equal(await t.rotinas.lembretes(), 1)
+    for (let i = 0; i < 30; i++) {
+      t.relogio.agora += INTERVALO_MIN_MS
+      await t.rotinas.lembretes()
+    }
+    assert.equal(t.enviadas.length, AUTOMATICAS_POR_DIA)
+    t.relogio.agora += 3_600_000
+    assert.equal(await t.rotinas.lembretes(), 0, 'o teto do dia vale mesmo passado o intervalo')
+  })
+
+  it('o intervalo é sorteado entre 1 e 5 minutos', async () => {
+    const { registrarAutomaticaEnviada } = await import('../src/automaticas.js')
+    const t = montar()
+    const servico = (t.rotinas as unknown as { d: { servico: ServicoAgenda } }).d.servico
+    for (const [sorteio, esperado] of [[0, 60_000], [1, 300_000], [0.5, 180_000]] as const) {
+      registrarAutomaticaEnviada(t.store, servico, () => sorteio)
+      assert.equal(Number(t.store.lerAjuste('automatica_proxima')) - t.relogio.agora, esperado)
+    }
+  })
+
+  it('nunca para quem pediu para parar, nem para número da equipe', async () => {
+    const t = pronto({ NUMEROS_AVISOS: '5511966665555' })
+    t.store.adicionarMensagem('5511966665555', 'user', 'oi', SEXTA_17H30 - 1000)
+    t.store.adicionarMensagem('5511955554444', 'user', 'por favor, pare de me mandar mensagem', SEXTA_17H30 - 1000)
+    aval(t.google, '2026-10-17', '10:00', 'Equipe', '5511966665555')
+    aval(t.google, '2026-10-17', '10:30', 'Brava', '5511955554444')
+    assert.equal(await t.rotinas.lembretes(), 0)
+    assert.equal(t.enviadas.length, 0)
+    assert.equal(t.store.contarLembretes(0, 'pulado: número da equipe'), 1)
+    assert.equal(t.store.contarLembretes(0, 'pulado: pediu para não receber'), 1)
   })
 
   it('falha no envio: anota, não tenta de novo, e segue para o próximo cliente', async () => {

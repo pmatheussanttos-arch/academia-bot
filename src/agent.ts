@@ -107,7 +107,7 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
   {
     name: 'consultar_horarios',
     description:
-      'Lista os horários de aula experimental ou de avaliação em uma data e período do dia. Para avaliação, consulta o Google Agenda e mostra só os horários livres. Use SEMPRE antes de oferecer ou aceitar um horário: nunca invente horários. Informe a data como AAAA-MM-DD; para "segunda", "amanhã" etc., calcule a partir da data de hoje informada no início da conversa. Não registra nada.',
+      'Lista os horários de aula experimental ou de avaliação em uma data e período do dia. Para avaliação, consulta o Google Agenda e mostra só os horários livres. Use antes de OFERECER horários: nunca invente horários. Se o cliente já escolheu dia e horário, vá direto para solicitar_avaliacao. Informe a data como AAAA-MM-DD; para "segunda", "amanhã" etc., calcule a partir da data de hoje informada no início da conversa. Não registra nada.',
     strict: true,
     input_schema: {
       type: 'object',
@@ -128,7 +128,7 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
   {
     name: 'solicitar_avaliacao',
     description:
-      'Marca a avaliação física (agenda de verdade, quando a ferramenta devolver a mensagem de "agendada") ou registra o pedido de aula experimental (a equipe confirma). Use só depois de ter tipo, nome, data e horário escolhidos pelo cliente, com o horário vindo de consultar_horarios. A ferramenta devolve a mensagem final que você deve enviar ao cliente. Não silencia o bot: a conversa continua normal.',
+      'Marca a avaliação física (agenda de verdade, quando a ferramenta devolver a mensagem de "agendada") ou registra o pedido de aula experimental (a equipe confirma). Use assim que tiver tipo, nome, data e horário escolhidos pelo cliente. Se o cliente JÁ disse nome, dia e horário, chame esta ferramenta direto, sem transferir para a equipe e sem pedir de novo o que ele já disse: a própria ferramenta confere o horário e, se estiver ocupado, devolve os horários livres. A ferramenta devolve a mensagem final que você deve enviar ao cliente. Não silencia o bot: a conversa continua normal.',
     strict: true,
     input_schema: {
       type: 'object',
@@ -136,7 +136,7 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
         tipo: TIPO_VISITA,
         nome: { type: 'string', description: 'Nome que o cliente escreveu nesta conversa. Nunca invente nem use o nome do perfil do WhatsApp: se ainda não souber, pergunte antes.' },
         data: { type: 'string', description: 'Data no formato AAAA-MM-DD.' },
-        horario: { type: 'string', description: 'Horário de início no formato HH:MM, igual a um dos horários devolvidos por consultar_horarios.' },
+        horario: { type: 'string', description: 'Horário de início no formato HH:MM (por exemplo, "14h" vira "14:00"), dentro da grade de 30 em 30 minutos.' },
         observacao: { type: 'string', description: 'Algo que a equipe precise saber (plano de interesse, por exemplo). Use "" se não houver.' },
         ja_e_aluno: { type: 'boolean', description: 'true se o cliente disse que já é aluno da academia.' },
         plano_vip: { type: 'boolean', description: 'true se o cliente disse que é de um plano VIP (ou vai contratar um).' },
@@ -175,7 +175,7 @@ export async function encaminharParaHumano(
 ): Promise<void> {
   const { cfg, store, notificar } = deps
   if (cfg.handoffHoras > 0) store.definirHandoff(chat, cfg.handoffHoras, motivo)
-  anotar(() => store.registrarEvento('transferencia', chat, motivo))
+  anotar(() => store.registrarEvento('transferencia', chat, motivo, Date.now(), nome?.trim() ?? ''))
   await notificar(
     [
       '🔔 Cliente precisa de atendimento humano',
@@ -215,7 +215,8 @@ export function registroDeFerramenta(bloco: Anthropic.ToolUseBlock, r: Anthropic
   const entrada = (bloco.input ?? {}) as Record<string, unknown>
   const dados = [entrada.tipo, entrada.data, entrada.periodo, entrada.horario].filter((v) => typeof v === 'string' && v).join(', ')
   const saida = (typeof r.content === 'string' ? r.content : '').replace(/\s+/g, ' ').slice(0, 110)
-  return `[agente] ${bloco.name}(${dados}) -> ${r.is_error ? 'erro: ' : ''}${saida}`
+  const motivo = bloco.name === 'chamar_humano' && typeof entrada.motivo === 'string' ? ` motivo="${entrada.motivo.replace(/\s+/g, ' ').slice(0, 160)}"` : ''
+  return `[agente] ${bloco.name}(${dados})${motivo} -> ${r.is_error ? 'erro: ' : ''}${saida}`
 }
 
 function resultado(bloco: Anthropic.ToolUseBlock, texto: string, erro = false): Anthropic.ToolResultBlockParam {

@@ -53,6 +53,25 @@ export interface Comparecimento {
   por: string
 }
 
+export interface TransferenciaSemResposta {
+  id: number
+  chat: string
+  ts: number
+  motivo: string
+  /** Nome do perfil do WhatsApp na hora da transferência (pode ser vazio). */
+  nomePerfil: string
+}
+
+export interface Acompanhamento {
+  id: number
+  ts: number
+  chat: string
+  tipo: string
+  ref: number
+  resultado: string
+  contexto: string
+}
+
 export interface EventoRegistrado {
   id: number
   ts: number
@@ -96,6 +115,8 @@ export class Store {
     const colunas = (this.db.prepare('PRAGMA table_info(matriculas)').all() as unknown as Array<{ name: string }>).map((c) => c.name)
     if (!colunas.includes('lancada_em')) this.db.exec('ALTER TABLE matriculas ADD COLUMN lancada_em INTEGER')
     if (!colunas.includes('lancada_por')) this.db.exec("ALTER TABLE matriculas ADD COLUMN lancada_por TEXT NOT NULL DEFAULT ''")
+    const colunasEventos = (this.db.prepare('PRAGMA table_info(eventos)').all() as unknown as Array<{ name: string }>).map((c) => c.name)
+    if (!colunasEventos.includes('extra')) this.db.exec("ALTER TABLE eventos ADD COLUMN extra TEXT NOT NULL DEFAULT ''")
   }
 
   private criarTabelas(): void {
@@ -186,6 +207,17 @@ export class Store {
         cache_escrita INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_uso_ia_ts ON uso_ia (ts);
+      CREATE TABLE IF NOT EXISTS acompanhamento (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts INTEGER NOT NULL,
+        chat TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        ref INTEGER NOT NULL,
+        resultado TEXT NOT NULL,
+        contexto TEXT NOT NULL DEFAULT '',
+        UNIQUE (chat, tipo, ref)
+      );
+      CREATE INDEX IF NOT EXISTS idx_acompanhamento_ts ON acompanhamento (ts);
       CREATE TABLE IF NOT EXISTS ajustes (
         chave TEXT PRIMARY KEY,
         valor TEXT NOT NULL
@@ -223,8 +255,8 @@ export class Store {
 
   // --- Registro de acontecimentos (para os números do painel) ---
 
-  registrarEvento(tipo: string, chat: string, detalhe = '', ts = Date.now()): void {
-    this.db.prepare('INSERT INTO eventos (ts, tipo, chat, detalhe) VALUES (?, ?, ?, ?)').run(ts, tipo, chat, detalhe.slice(0, 500))
+  registrarEvento(tipo: string, chat: string, detalhe = '', ts = Date.now(), extra = ''): void {
+    this.db.prepare('INSERT INTO eventos (ts, tipo, chat, detalhe, extra) VALUES (?, ?, ?, ?, ?)').run(ts, tipo, chat, detalhe.slice(0, 500), extra.slice(0, 200))
   }
 
   contarEventos(tipo: string, desde: number, ate = Number.MAX_SAFE_INTEGER): number {
@@ -300,6 +332,81 @@ export class Store {
   /** Conversas com o bot calado, com o motivo e quando a equipe (ou o bot) assumiu. */
   handoffsParaAcompanhar(agora = Date.now()): HandoffAtivo[] {
     return this.handoffsAtivos(agora)
+  }
+
+  // --- Acompanhamento de conversas paradas (avisos à equipe e lembretes ao cliente) ---
+
+  /**
+   * Transferências para a equipe que ninguém respondeu ainda: a última de cada conversa, feita depois de `desde`, sem
+   * nenhuma resposta da equipe (evento "equipe_respondeu") ou devolução ao bot depois dela.
+   */
+  transferenciasSemResposta(desde: number): TransferenciaSemResposta[] {
+    return this.db
+      .prepare(
+        `SELECT e.id AS id, e.chat AS chat, e.ts AS ts, e.detalhe AS motivo, e.extra AS nomePerfil FROM eventos e
+         WHERE e.tipo = 'transferencia' AND e.ts >= ?
+           AND e.id = (SELECT MAX(x.id) FROM eventos x WHERE x.tipo = 'transferencia' AND x.chat = e.chat)
+           AND NOT EXISTS (SELECT 1 FROM eventos r WHERE r.tipo = 'equipe_respondeu' AND r.chat = e.chat AND r.ts >= e.ts)
+         ORDER BY e.ts`,
+      )
+      .all(desde) as unknown as TransferenciaSemResposta[]
+  }
+
+  /** Aconteceu algum destes eventos nesta conversa depois de `desde`? (ex.: avaliação marcada ou matrícula feita) */
+  teveEvento(chat: string, tipos: string[], desde: number): boolean {
+    const marcas = tipos.map(() => '?').join(',')
+    return this.db.prepare(`SELECT 1 FROM eventos WHERE chat = ? AND ts >= ? AND tipo IN (${marcas}) LIMIT 1`).get(chat, desde, ...tipos) !== undefined
+  }
+
+  /** A equipe falou com o cliente (ou devolveu a conversa ao bot) depois de `desde`? */
+  equipeRespondeuDesde(chat: string, desde: number): boolean {
+    return this.db.prepare("SELECT 1 FROM eventos WHERE tipo = 'equipe_respondeu' AND chat = ? AND ts >= ? LIMIT 1").get(chat, desde) !== undefined
+  }
+
+  /**
+   * Conversas em que o bot falou por último: o cliente escreveu depois de `clienteDesde` e o bot respondeu por último
+   * antes de `botAntes` (ou seja, o cliente ficou parado). Fora as que estão com a equipe.
+   */
+  conversasParadas(clienteDesde: number, botAntes: number, agora = Date.now()): Array<{ chat: string; cliente: number; bot: number }> {
+    return this.db
+      .prepare(
+        `SELECT chat, MAX(CASE WHEN papel = 'user' THEN ts END) AS cliente, MAX(CASE WHEN papel = 'assistant' THEN ts END) AS bot
+         FROM mensagens GROUP BY chat
+         HAVING cliente >= ? AND bot > cliente AND bot <= ? AND chat NOT IN (SELECT chat FROM handoff WHERE ate > ?)
+         ORDER BY cliente`,
+      )
+      .all(clienteDesde, botAntes, agora) as unknown as Array<{ chat: string; cliente: number; bot: number }>
+  }
+
+  /** Registra um aviso/lembrete. Devolve false se este (conversa, tipo, referência) já existia. */
+  registrarAcompanhamento(chat: string, tipo: string, ref: number, resultado: string, ts = Date.now(), contexto = ''): boolean {
+    const r = this.db.prepare('INSERT OR IGNORE INTO acompanhamento (ts, chat, tipo, ref, resultado, contexto) VALUES (?, ?, ?, ?, ?, ?)').run(ts, chat, tipo, ref, resultado.slice(0, 200), contexto.slice(0, 300))
+    return Number(r.changes) > 0
+  }
+
+  atualizarAcompanhamento(chat: string, tipo: string, ref: number, resultado: string): void {
+    this.db.prepare('UPDATE acompanhamento SET resultado = ? WHERE chat = ? AND tipo = ? AND ref = ?').run(resultado.slice(0, 200), chat, tipo, ref)
+  }
+
+  acompanhamentoFeito(chat: string, tipo: string, ref: number): Acompanhamento | undefined {
+    return this.db.prepare('SELECT id, ts, chat, tipo, ref, resultado, contexto FROM acompanhamento WHERE chat = ? AND tipo = ? AND ref = ?').get(chat, tipo, ref) as unknown as Acompanhamento | undefined
+  }
+
+  /** Esta conversa já recebeu algum lembrete automático (de qualquer tipo)? É no máximo um por conversa. */
+  jaRecebeuLembrete(chat: string): boolean {
+    return this.db.prepare("SELECT 1 FROM acompanhamento WHERE chat = ? AND tipo LIKE 'lembrete_%' LIMIT 1").get(chat) !== undefined
+  }
+
+  acompanhamentos(desde: number, prefixo: string, limite = 50): Acompanhamento[] {
+    return this.db
+      .prepare('SELECT id, ts, chat, tipo, ref, resultado, contexto FROM acompanhamento WHERE ts >= ? AND tipo LIKE ? ORDER BY id DESC LIMIT ?')
+      .all(desde, `${prefixo}%`, limite) as unknown as Acompanhamento[]
+  }
+
+  contarAcompanhamentos(desde: number, prefixo: string, resultado?: string): number {
+    return resultado
+      ? (this.db.prepare('SELECT COUNT(*) AS n FROM acompanhamento WHERE ts >= ? AND tipo LIKE ? AND resultado = ?').get(desde, `${prefixo}%`, resultado) as unknown as { n: number }).n
+      : (this.db.prepare('SELECT COUNT(*) AS n FROM acompanhamento WHERE ts >= ? AND tipo LIKE ?').get(desde, `${prefixo}%`) as unknown as { n: number }).n
   }
 
   // --- Comparecimento às avaliações ---
@@ -528,6 +635,7 @@ export class Store {
     this.db.prepare('DELETE FROM uso_ia WHERE ts < ?').run(longo)
     this.db.prepare('DELETE FROM comparecimento WHERE inicio < ?').run(longo)
     this.db.prepare('DELETE FROM lembretes WHERE ts < ?').run(longo)
+    this.db.prepare('DELETE FROM acompanhamento WHERE ts < ?').run(longo)
   }
 
   fechar(): void {
