@@ -73,7 +73,18 @@ Qual desses encaixa melhor no seu objetivo? 💪🏼
 
 ## 2. Pagamento por cartão pelo bot (ideia, em discussão — nada decidido)
 
-Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente até pagar. Ver a conversa de 24/10/2026 para os pontos levantados (gateway, plataforma da academia, direito de arrependimento, taxas, fases).
+Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente até pagar.
+
+**Decisões (24/10/2026):**
+- Gateway: **Mercado Pago** (o Matheus já tem conta).
+- **Só os planos "3x por semana" e "Acesso livre"** pagam por cartão pelo bot. Os **VIP continuam pagos direto na recepção** (a taxa é menor lá), ou por Pix como hoje.
+- Cartão nunca passa pelo WhatsApp: o bot manda um link de pagamento do Mercado Pago. A chave de acesso (Access Token) vai só em variável da Render, nunca no chat.
+- Fases sugeridas: (1) bot manda o link e, quando o Mercado Pago avisar "aprovado", avisa a equipe, que lança a matrícula; (2) só então o bot confirma o pagamento ao cliente (a regra "nunca confirmar pagamento" só muda com a confirmação vinda do Mercado Pago); (3) integração com a plataforma da academia, se existir.
+
+**ABERTO:**
+1. O link cobra o quê? (a) só a 1ª mensalidade (R$ 89,90 ou R$ 99,90); (b) 1ª mensalidade + avaliação de R$ 35 (R$ 124,90 ou R$ 134,90), que é o que o cliente novo paga hoje "no ato"; (c) outro.
+2. As mensalidades seguintes dos planos básicos: como são cobradas hoje (recepção, plataforma)? O link pagaria só a primeira vez; cobrança automática todo mês seria outra etapa (Assinaturas do Mercado Pago), mais complexa.
+3. Nome da plataforma da academia (para saber se dá para integrar a matrícula).
 
 ---
 
