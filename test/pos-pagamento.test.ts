@@ -69,24 +69,45 @@ describe('cadastro depois do pagamento (ja_pagou)', () => {
 })
 
 describe('comprovante (imagem ou documento) no modo QR', () => {
-  it('avisa a equipe, NÃO silencia o bot e deixa o bot seguir a conversa', async () => {
-    const t = montar([texto('Recebi, obrigado! A equipe vai conferir o pagamento ✅ Tem mais alguma dúvida?')])
-    await tratarMensagem(t.deps, msg({ tipo: 'image', texto: 'segue o comprovante' }))
-    assert.match(t.avisos[0]!, /📎 Cliente enviou uma imagem com a legenda "segue o comprovante"/)
+  it('só diz que recebeu e que a equipe vai olhar: sem pedir nome, sem chamar o modelo, sem silenciar', async () => {
+    const t = montar([])
+    await tratarMensagem(t.deps, msg({ tipo: 'image', texto: undefined }))
+    assert.deepEqual(t.enviadas, ['Recebi a imagem! 😊 A equipe vai dar uma olhada e já te retorna.'])
+    assert.doesNotMatch(t.enviadas[0]!, /nome|\?/i, 'nenhuma pergunta')
+    assert.equal(t.chamadas.length, 0, 'resposta fixa: o modelo nem é chamado (e por isso não pergunta o nome)')
+    assert.equal(t.store.emHandoff(CHAT), false, 'e o bot não se cala')
+    assert.match(t.avisos[0]!, /📎 Cliente enviou uma imagem/)
     assert.match(t.avisos[0]!, /WhatsApp: \+553288465841/)
-    assert.match(t.avisos[0]!, /O bot continua atendendo/)
-    assert.equal(t.store.emHandoff(CHAT), false)
-    assert.deepEqual(t.enviadas, ['Recebi, obrigado! A equipe vai conferir o pagamento ✅ Tem mais alguma dúvida?'])
-    assert.equal(t.chamadas.length, 1, 'quem responde é o modelo')
-    assert.match(JSON.stringify(t.chamadas[0]!.messages.at(-1)), /\[imagem enviado: segue o comprovante\]/)
+    assert.doesNotMatch(t.enviadas[0]!, /confirmad|recebido o pagamento|tudo pago/i, 'não confirma pagamento')
   })
 
-  it('a conversa continua: o cliente diz que não tem dúvida e o bot responde (não fica mudo)', async () => {
-    const t = montar([texto('Recebi!'), texto('Perfeito! Qual é o seu nome completo?')])
+  it('documento e vídeo têm a mesma resposta, com o nome certo do arquivo', async () => {
+    const t = montar([])
     await tratarMensagem(t.deps, msg({ tipo: 'document', texto: undefined }))
-    await tratarMensagem(t.deps, msg({ texto: 'não, só isso' }))
+    await tratarMensagem(t.deps, msg({ tipo: 'video', texto: undefined }))
+    assert.equal(t.enviadas[0], 'Recebi o documento! 😊 A equipe vai dar uma olhada e já te retorna.')
+    assert.equal(t.enviadas[1], 'Recebi o vídeo! 😊 A equipe vai dar uma olhada e já te retorna.')
+  })
+
+  it('o texto pode ser editado no mensagens.md (seção arquivo-recebido)', async () => {
+    const { mkdtempSync, readFileSync, writeFileSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const pasta = mkdtempSync(join(tmpdir(), 'arq-'))
+    const arq = join(pasta, 'm.md')
+    writeFileSync(arq, readFileSync('./mensagens.md', 'utf8').replace('Recebi {arquivo}! 😊 A equipe vai dar uma olhada e já te retorna.', 'Chegou {arquivo}, obrigado!'))
+    const t = montar([], { MENSAGENS_PATH: arq })
+    await tratarMensagem(t.deps, msg({ tipo: 'image', texto: undefined }))
+    assert.equal(t.enviadas[0], 'Chegou a imagem, obrigado!')
+  })
+
+  it('a conversa continua depois: o cliente escreve e o bot responde (não fica mudo)', async () => {
+    const t = montar([texto('Claro! Posso ajudar em mais alguma coisa?')])
+    await tratarMensagem(t.deps, msg({ tipo: 'image', texto: undefined }))
+    await tratarMensagem(t.deps, msg({ texto: 'uma dúvida: que horas abre sábado?' }))
     assert.equal(t.enviadas.length, 2)
-    assert.equal(t.enviadas[1], 'Perfeito! Qual é o seu nome completo?')
+    assert.equal(t.enviadas[1], 'Claro! Posso ajudar em mais alguma coisa?')
+    assert.match(JSON.stringify(t.chamadas[0]!.messages), /\[imagem enviado\]/, 'o modelo vê que houve um envio de imagem')
   })
 
   it('modo oficial da Meta: continua passando o arquivo para a equipe (lá o bot não enxerga as imagens)', async () => {

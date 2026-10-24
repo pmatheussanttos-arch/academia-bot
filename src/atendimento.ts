@@ -1,5 +1,6 @@
 import { ehNumeroDaEquipe, remetentePermitido } from './config.js'
 import { anotar, encaminharParaHumano, msgErroTecnico, responder, type AgenteDeps } from './agent.js'
+import { carregarMensagens, renderizar } from './mensagens.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import { MOTIVO_DA_EQUIPE, type Store } from './store.js'
 import type { ClienteWhatsapp, MensagemRecebida } from './whatsapp.js'
@@ -25,6 +26,20 @@ function msgAudio(cfg: AgenteDeps['cfg']): string {
 function msgArquivo(cfg: AgenteDeps['cfg']): string {
   const link = linkRecepcao(cfg.numeroRecepcao, 'Oi! Vim pelo assistente virtual e vou enviar um arquivo (comprovante) para a equipe.')
   return link ? `Recebi seu arquivo, mas por aqui eu não consigo abrir imagens nem documentos 😊 Para a equipe ver, envie direto para a nossa recepção 👇\n${link}` : MSG_ARQUIVO
+}
+
+const NOME_ARQUIVO: Record<string, string> = { image: 'a imagem', document: 'o documento', video: 'o vídeo' }
+export const ARQUIVO_RECEBIDO_PADRAO = 'Recebi {arquivo}! 😊 A equipe vai dar uma olhada e já te retorna.'
+
+/** Resposta automática ao arquivo (comprovante) no modo QR: só confirma o recebimento, sem perguntas e sem confirmar pagamento. */
+export function textoArquivoRecebido(cfg: AgenteDeps['cfg'], tipo: string): string {
+  let modelo = ARQUIVO_RECEBIDO_PADRAO
+  try {
+    modelo = carregarMensagens(cfg.mensagensPath)['arquivo-recebido']?.trim() || modelo
+  } catch {
+    // mensagens.md ilegível: usa o texto padrão
+  }
+  return renderizar(modelo, { arquivo: NOME_ARQUIVO[tipo] ?? 'o arquivo' })
 }
 
 const IGNORAR = new Set(['reaction', 'sticker', 'unsupported', 'unknown', 'system', 'request_welcome'])
@@ -194,11 +209,12 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
           await encaminharParaHumano(deps, msg.from, msg.nome, `Enviou ${descricao}. Pode ser um comprovante.`)
           return await enviar(deps, msg, msgArquivo(cfg))
         }
-        // No modo QR o arquivo chega no próprio celular da academia: a equipe só precisa ser avisada. O bot NÃO se cala:
-        // segue a conversa (agradece, pergunta se há mais alguma dúvida e leva ao cadastro), sem dizer que conferiu nada.
+        // No modo QR o arquivo chega no próprio celular da academia: a equipe só precisa ser avisada. O bot NÃO se cala nem
+        // puxa conversa (não pede nome nem dados): só diz que recebeu e que a equipe vai olhar, sem dizer que conferiu nada.
         await deps.notificar(
           [`📎 Cliente enviou ${descricao}`, `Nome: ${msg.nome?.trim() || '(sem nome no perfil)'}`, `WhatsApp: ${formatarWhatsapp(msg.from)}`, 'Pode ser o comprovante de pagamento: confira no WhatsApp da academia. O bot continua atendendo a conversa.'].join('\n'),
         )
+        return await enviar(deps, msg, textoArquivoRecebido(cfg, msg.tipo))
       } else {
         return await enviar(deps, msg, msgAudio(cfg))
       }

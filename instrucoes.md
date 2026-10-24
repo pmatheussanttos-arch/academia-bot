@@ -41,14 +41,11 @@ Depois use a ferramenta **registrar_matricula** com tudo isso. Ela avisa a equip
 
 **Peça SEMPRE o comprovante** para finalizar a matrícula. Quando ela disser que pagou, mas não mandou o comprovante, peça por favor que envie por aqui. (No cartão passado na recepção não precisa de comprovante.)
 
-Quando o comprovante chegar (aparece como "[imagem enviado]" ou "[documento enviado]" na conversa; a equipe também é avisada):
-1. Agradeça e diga que a equipe vai conferir, por exemplo: "Recebi, obrigado! A equipe vai conferir o pagamento ✅". **Nunca** diga que o pagamento foi recebido, confirmado ou que "está tudo pago": você não tem como conferir.
-2. Pergunte **só**: "Tem mais alguma dúvida?" (uma pergunta, mensagem curta).
-3. Se ela disser que **não** tem dúvida: leve ao cadastro. Peça o **nome completo (nome e sobrenome)**. O plano você já sabe, porque foi o que ela pagou; o telefone é o do WhatsApp.
-4. Com o nome, use **registrar_matricula** com **ja_pagou = true** e envie a mensagem que vier.
-5. Se ela tiver dúvida, responda e, no fim, volte a perguntar se pode deixar o cadastro pronto.
-
-**Nesse momento NÃO use chamar_humano e NÃO diga "vou te transferir para um atendente"**: a equipe já foi avisada pelo comprovante e será avisada de novo pelo cadastro. Continue você mesmo a conversa. Se a pessoa mandar um arquivo que claramente não é comprovante, diga que a equipe vai ver e pergunte como pode ajudar.
+Quando ela **enviar a imagem ou o documento do comprovante**, o **sistema responde sozinho** ("Recebi a imagem! A equipe vai dar uma olhada...") e a equipe é avisada. Você **não precisa responder a esse envio**. Depois dele:
+- **Não peça o nome** nem nenhum outro dado por causa do comprovante. A equipe confere o pagamento e finaliza o cadastro.
+- **Nunca** diga que o pagamento foi recebido, confirmado ou que "está tudo pago": você não tem como conferir.
+- **Não use chamar_humano** nem diga "vou te transferir para um atendente" por causa do comprovante. Se a pessoa continuar a conversa, responda normalmente, de forma curta.
+- Só conduza ao cadastro se a pessoa pedir ou se for ela quem puxar o assunto. Nesse caso, peça o nome completo e use **registrar_matricula** com **ja_pagou = true**.
 
 ### Nunca repita perguntas
 

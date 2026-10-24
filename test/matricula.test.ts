@@ -173,13 +173,13 @@ describe('instruções da matrícula', () => {
     assert.match(i, /ferramenta \*\*registrar_matricula\*\*/)
   })
 
-  it('o bot NUNCA diz que o pagamento caiu; depois do comprovante pergunta se há dúvida e leva ao cadastro, sem transferir', () => {
+  it('o bot NUNCA diz que o pagamento caiu; ao receber o comprovante não pede nome nem transfere', () => {
     assert.match(i, /\*\*Nunca\*\* diga que o pagamento foi recebido, confirmado ou que "está tudo pago": você não tem como conferir/)
     assert.match(i, /\*\*Peça SEMPRE o comprovante\*\*/)
-    assert.match(i, /Pergunte \*\*só\*\*: "Tem mais alguma dúvida\?"/)
-    assert.match(i, /Peça o \*\*nome completo \(nome e sobrenome\)\*\*\. O plano você já sabe, porque foi o que ela pagou/)
-    assert.match(i, /registrar_matricula\*\* com \*\*ja_pagou = true\*\*/)
-    assert.match(i, /Nesse momento NÃO use chamar_humano e NÃO diga "vou te transferir para um atendente"/)
+    assert.match(i, /o \*\*sistema responde sozinho\*\* \("Recebi a imagem! A equipe vai dar uma olhada\.\.\."\)/)
+    assert.match(i, /\*\*Não peça o nome\*\* nem nenhum outro dado por causa do comprovante/)
+    assert.match(i, /\*\*Não use chamar_humano\*\* nem diga "vou te transferir para um atendente" por causa do comprovante/)
+    assert.doesNotMatch(i, /Pergunte \*\*só\*\*: "Tem mais alguma dúvida\?"/)
     assert.match(REGRAS_FIXAS, /Nunca diga que um pagamento foi recebido, confirmado ou compensado/)
   })
 })

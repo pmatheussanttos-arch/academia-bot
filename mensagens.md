@@ -3,7 +3,7 @@
 Estes são os textos que o bot envia ao cliente quando uma avaliação é agendada, quando um pedido de visita é registrado, quando passa a conversa para uma pessoa (seção "transferencia") e quando registra uma matrícula (seções "matricula-pix" e "matricula-cartao" — é nelas que fica a chave Pix).
 A linha {confirmacao} vira o link para a recepção (quando NUMERO_RECEPCAO está preenchido) ou o aviso de que a equipe confirma.
 Pode editar o texto à vontade. Mantenha os títulos que começam com "##" e as palavras entre chaves, como {dia} e {hora}:
-o bot troca por dados reais. A seção "matricula-paga" é a do cadastro feito depois que o cliente já pagou e mandou o comprovante. As seções "pagamento-cartao" (mensagem com o link; aceita {plano}, {link} e {parcelamento}, que só aparece nos planos VIP), "cartao-recepcao" e "links-pagamento" (um link da InfinitePay por plano) cuidam do pagamento no cartão. A seção "valores" é a mensagem de planos e preços (vai em 3 mensagens curtas: as linhas [[nova mensagem]] separam uma da outra; não apague). A seção "lembrete-avaliacao" é o lembrete do dia anterior (ligado pelo painel, aba Bot); aceita {nome}, {quando} (hoje ou amanhã), {dia} e {hora}. As seções "lembrete-transferida" (cliente transferido que a equipe não respondeu em 2 horas) e "lembrete-parada" (cliente que parou no meio de uma venda, depois de 15 minutos) são as retomadas de conversa (painel, aba Conversas); aceitam {nome}. As linhas {linha_valor} e {linha_mensalidade} vêm das três últimas seções.
+o bot troca por dados reais. A seção "arquivo-recebido" é a resposta automática quando o cliente manda imagem, documento ou vídeo (comprovante); aceita {arquivo} ("a imagem", "o documento", "o vídeo"). A seção "matricula-paga" é a do cadastro feito depois que o cliente já pagou e mandou o comprovante. As seções "pagamento-cartao" (mensagem com o link; aceita {plano}, {link} e {parcelamento}, que só aparece nos planos VIP), "cartao-recepcao" e "links-pagamento" (um link da InfinitePay por plano) cuidam do pagamento no cartão. A seção "valores" é a mensagem de planos e preços (vai em 3 mensagens curtas: as linhas [[nova mensagem]] separam uma da outra; não apague). A seção "lembrete-avaliacao" é o lembrete do dia anterior (ligado pelo painel, aba Bot); aceita {nome}, {quando} (hoje ou amanhã), {dia} e {hora}. As seções "lembrete-transferida" (cliente transferido que a equipe não respondeu em 2 horas) e "lembrete-parada" (cliente que parou no meio de uma venda, depois de 15 minutos) são as retomadas de conversa (painel, aba Conversas); aceitam {nome}. As linhas {linha_valor} e {linha_mensalidade} vêm das três últimas seções.
 
 ## avaliacao-agendada
 Perfeito! Avaliação agendada! ✅
@@ -97,6 +97,9 @@ Prontinho, {nome}! Seu cadastro está registrado ✅
 📋 Plano: {plano}
 
 A recepção vai conferir o seu comprovante e finalizar tudo. Qualquer dúvida, é só chamar! 😊
+
+## arquivo-recebido
+Recebi {arquivo}! 😊 A equipe vai dar uma olhada e já te retorna.
 
 ## cartao-recepcao
 O cartão é passado na recepção da academia. Pode vir no seu horário que a equipe finaliza tudo com você. Qualquer dúvida, tô aqui!
