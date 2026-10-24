@@ -116,13 +116,25 @@ describe('ferramenta registrar_matricula', () => {
     assert.match(resultado, /Anual VIP/)
   })
 
-  it('cartão: mensagem manda passar na recepção e NÃO traz a chave Pix', async () => {
+  it('cartão com plano que tem link: a mensagem traz o link seguro e NÃO traz a chave Pix', async () => {
     const t = criarDepsDeAgente([usarFerramenta('registrar_matricula', { ...COMPLETO, pagamento: 'cartao' }), texto('ok')])
     t.store.adicionarMensagem(CHAT, 'user', 'vou de cartão')
     await responder(t.deps, CHAT, 'Maria')
     const resultado = JSON.stringify(t.chamadas[1]!.messages.at(-1)!.content)
-    assert.match(resultado, /recepção da academia/)
+    assert.match(resultado, /https:\/\/link\.infinitepay\.io\/garagefitacad\/VC1DLUMtSQ-htztVZNxF4-838,80/, 'o link do Anual VIP')
+    assert.match(resultado, /nunca por aqui/)
+    assert.match(resultado, /me enviar o comprovante/)
     assert.doesNotMatch(resultado, /35\.950\.235/, 'no cartão a chave Pix não aparece')
+  })
+
+  it('cartão com plano SEM link: cai na recepção, como antes', async () => {
+    const t = criarDepsDeAgente([usarFerramenta('registrar_matricula', { ...COMPLETO, plano: 'Plano especial', pagamento: 'cartao' }), texto('ok')])
+    t.store.adicionarMensagem(CHAT, 'user', 'vou de cartão')
+    await responder(t.deps, CHAT, 'Maria')
+    const resultado = JSON.stringify(t.chamadas[1]!.messages.at(-1)!.content)
+    assert.match(resultado, /recepção da academia/)
+    assert.doesNotMatch(resultado, /infinitepay/)
+    assert.doesNotMatch(resultado, /35\.950\.235/)
   })
 
   it('dado faltando: nada é registrado e o motivo volta para o assistente perguntar', async () => {

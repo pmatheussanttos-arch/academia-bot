@@ -1,6 +1,6 @@
 # Rascunhos de alterações
 
-**Situação:** o item 1 (mensagem de valores) já foi aplicado no bot. O item 2 (pagamento por cartão) ainda é só ideia.
+**Situação:** o item 1 (mensagem de valores) já foi aplicado no bot. O item 2 (pagamento por cartão com link da InfinitePay) também foi aplicado em 24/10/2026; sobrou conferir os valores dos links do 3x e do Livre.
 
 Aqui ficam as mudanças combinadas com o Matheus. Este arquivo não afeta o bot: serve para juntar as ideias e aplicar quando o Matheus mandar. O texto vivo da mensagem de valores fica no `mensagens.md` (seção `valores`).
 
@@ -73,7 +73,9 @@ Qual desses encaixa melhor no seu objetivo? 💪🏼
 
 ---
 
-## 2. Pagamento por cartão pelo bot (ideia, em discussão — nada decidido)
+## 2. Pagamento por cartão pelo bot — APLICADO em 24/10/2026 (link da InfinitePay)
+
+**Como ficou:** os 5 links (3x, Livre, Trimestral, Semestral e Anual VIP) estão no `mensagens.md`, seção `links-pagamento` (linha com `#` na frente fica desligada). O bot manda o link do plano (ferramenta `enviar_link_pagamento`, e automaticamente na mensagem de matrícula no cartão), pede o comprovante e chama a equipe; nunca confirma pagamento. **ATENÇÃO:** os links do 3x e do Livre cobram R$ 90,00 e R$ 100,00, e os planos custam R$ 89,90 e R$ 99,90: conferir.
 
 Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente até pagar.
 

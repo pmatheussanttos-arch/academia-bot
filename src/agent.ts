@@ -3,6 +3,7 @@ import type { PeriodoPedido, ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
 import { avisoDeMatricula, validarMatricula } from './matricula.js'
 import { carregarMensagens, renderizar } from './mensagens.js'
+import { CHAVES_PLANOS, PLANOS_PAGAMENTO, textoPagamentoCartao, trechoCartaoDaMatricula, type ChavePlano } from './pagamento.js'
 import { carregarInstrucoes, limparNome, montarSistema, situacaoDaConversa } from './prompt.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Notificador } from './notify.js'
@@ -47,7 +48,7 @@ export function textoTransferencia(cfg: Config): string {
 
 const MATRICULA_RESERVA: Record<'pix' | 'cartao', string> = {
   pix: 'Prontinho, {nome}! Seu cadastro já está registrado ✅\n\n📋 Plano: {plano}\n\nChave Pix (CNPJ): 35.950.235/0001-29 — GarageFit Academia.\nDepois me envie o comprovante por aqui que a recepção confere e finaliza o seu cadastro.',
-  cartao: 'Prontinho, {nome}! Seu cadastro já está registrado ✅\n\n📋 Plano: {plano}\n💳 Pagamento no cartão, passado na recepção da academia.',
+  cartao: 'Prontinho, {nome}! Seu cadastro já está registrado ✅\n\n📋 Plano: {plano}\n💳 Pagamento no cartão\n\n{pagamento_cartao}',
 }
 
 /** Texto da matrícula: o do mensagens.md (editável pelo dono) ou o de reserva, se o arquivo falhar. */
@@ -59,7 +60,7 @@ export function textoMatricula(cfg: Config, pagamento: 'pix' | 'cartao', nome: s
   } catch {
     // mensagens.md ilegível: usa a reserva, o cliente não pode ficar sem resposta
   }
-  return renderizar(modelo, { nome, plano })
+  return renderizar(modelo, { nome, plano, pagamento_cartao: pagamento === 'cartao' ? trechoCartaoDaMatricula(cfg, plano) : '' })
 }
 
 /** Mensagem de planos e preços (3 mensagens curtas, separadas por [[nova mensagem]]). Reserva, caso o mensagens.md falhe. */
@@ -137,6 +138,20 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
       'Devolve a mensagem oficial com os planos e os valores (planos básicos e VIP), já dividida em 3 mensagens curtas. Use quando a pessoa quiser saber dos planos, dos valores, da mensalidade ou do preço, ou depois de ela dizer que quer ver os planos. Não precisa perguntar antes se ela quer treinar 3x por semana ou todos os dias. Nunca monte a lista de valores por conta própria: envie o que esta ferramenta devolver.',
     strict: true,
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'enviar_link_pagamento',
+    description:
+      'Devolve a mensagem com o link seguro de pagamento no cartão (InfinitePay) do plano escolhido. Use quando a pessoa disser que quer pagar no cartão ou pedir o link de pagamento, e já souber qual é o plano; se ainda não souber, pergunte qual plano. Não confirma pagamento: depois que a pessoa pagar, peça o comprovante e chame a equipe. Nunca peça dados do cartão pelo WhatsApp.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        plano: { type: 'string', enum: [...CHAVES_PLANOS], description: 'O plano que a pessoa quer pagar: 3x_por_semana, acesso_livre, trimestral_vip, semestral_vip ou anual_vip.' },
+      },
+      required: ['plano'],
+      additionalProperties: false,
+    },
   },
   {
     name: 'consultar_horarios',
@@ -281,6 +296,19 @@ async function executarFerramenta(
     return resultado(
       bloco,
       `Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nenhuma palavra, sem acrescentar texto antes ou depois, e mantendo as linhas [[nova mensagem]] exatamente onde estão (elas dividem a resposta em 3 mensagens curtas). Já termina com a pergunta; não faça outra.\n---\n${textoValores(deps.cfg)}\n---`,
+    )
+  }
+
+  if (bloco.name === 'enviar_link_pagamento') {
+    const plano = CHAVES_PLANOS.includes(entrada.plano as ChavePlano) ? (entrada.plano as ChavePlano) : undefined
+    if (!plano) return resultado(bloco, `Plano inválido. Use um destes: ${CHAVES_PLANOS.join(', ')}.`, true)
+    const mensagem = textoPagamentoCartao(deps.cfg, plano)
+    if (!mensagem) {
+      return resultado(bloco, `Não há link de pagamento para ${PLANOS_PAGAMENTO[plano]}. Diga que o cartão é passado na recepção da academia (ou ofereça o Pix) e siga a conversa.`)
+    }
+    return resultado(
+      bloco,
+      `Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar o link nem nenhuma palavra e sem acrescentar texto antes ou depois. Não diga que o pagamento foi recebido. Quando a pessoa disser que pagou, peça o comprovante e use chamar_humano.\n---\n${mensagem}\n---`,
     )
   }
 

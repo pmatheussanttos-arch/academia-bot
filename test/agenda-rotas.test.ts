@@ -42,7 +42,7 @@ describe('lista de professores e código do endereço', () => {
     assert.match(a, /^[A-Za-z0-9_-]{26}$/)
     assert.notEqual(a, gerarCodigo())
     assert.equal(codigosIguais(a, a), true)
-    assert.equal(codigosIguais(a, a.slice(0, -1) + 'x'), false)
+    assert.equal(codigosIguais(a, a.slice(0, -1) + (a.endsWith('x') ? 'y' : 'x')), false)
     assert.equal(codigosIguais(a, a + 'x'), false, 'tamanhos diferentes não quebram')
   })
 })

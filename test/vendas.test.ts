@@ -87,8 +87,9 @@ describe('como os preços são explicados', () => {
   it('formas de pagamento: Pix e cartão, e nada além disso', () => {
     assert.match(i, /só \*\*Pix\*\* e \*\*cartão\*\*\. Não invente boleto, débito automático nem outra forma/)
     assert.match(i, /a chave é o CNPJ 35\.950\.235\/0001-29/)
-    assert.match(i, /\*\*Cartão:\*\* é passado \*\*na recepção da academia\*\*/)
-    assert.match(i, /- \*\*Formas de pagamento:\*\* \*\*Pix\*\* \(chave CNPJ: 35\.950\.235\/0001-29\) e \*\*cartão\*\*/)
+    assert.match(i, /\*\*Cartão:\*\* pode ser pago pelo \*\*link seguro\*\* da InfinitePay[^\n]*\*\*na recepção da academia\*\*/)
+    assert.match(i, /\*\*nunca\*\* peça número, validade, código ou senha pelo WhatsApp/)
+    assert.match(i, /- \*\*Formas de pagamento:\*\* \*\*Pix\*\* \(chave CNPJ: 35\.950\.235\/0001-29\) e \*\*cartão\*\* \(pelo link seguro ou na recepção/)
     assert.equal((i.match(/boleto/gi) ?? []).length, 1, 'a palavra "boleto" só aparece na proibição')
     assert.match(i, /Não invente boleto/)
   })
