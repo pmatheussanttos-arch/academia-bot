@@ -100,4 +100,14 @@ Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente a
 
 ---
 
+## 3. Ajustes de 24/10/2026 — APLICADOS
+
+1. Lembrete de avaliação **no mesmo dia, ~4 h antes** (manhã cedo: véspera 17h–20h).
+2. Avaliação: o bot oferece **só 3 horários** (os primeiros livres, ~1 h entre eles: 7h, 8h, 9h).
+3. Depois do comprovante: **não transfere**; pergunta se há dúvida; leva ao cadastro (nome completo; plano e telefone já conhecidos). Arquivo no QR não silencia o bot. **Cliente que escreve 2 vezes depois de transferido** volta ao bot.
+4. Conversa parada: **15 minutos** ("Conseguiu ver minha mensagem? Vamos continuar?").
+5. **Bot vendedor:** seção "Como vender" nas instruções (quebra de objeções, curto, amigável).
+
+---
+
 (próximas alterações entram aqui embaixo)

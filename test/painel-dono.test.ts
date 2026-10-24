@@ -329,7 +329,7 @@ describe('rotinas automáticas no painel (aba Bot)', () => {
   it('mostra o estado de cada rotina: resumo ligado, lembrete desligado, aviso de gasto', async () => {
     const html = await pagina(montar().app, 'bot')
     assert.match(html, /Resumo da semana para a equipe<\/b> <span class="status veio">LIGADO/)
-    assert.match(html, /Lembrete ao cliente, 1 dia antes da avaliação<\/b> <span class="status faltou">DESLIGADO/)
+    assert.match(html, /Lembrete da avaliação ao cliente<\/b> <span class="status faltou">DESLIGADO/)
     assert.match(html, /risco de o WhatsApp bloquear/)
     assert.match(html, /Aviso de gasto da IA<\/b> <span class="status veio">LIGADO/)
   })
@@ -340,7 +340,7 @@ describe('rotinas automáticas no painel (aba Bot)', () => {
     assert.equal(res.status, 303)
     assert.match(decodeURIComponent(res.headers.get('location')!), /^\/conectar\?token=segredo-admin&aba=bot&aviso=Lembrete da avaliação \(véspera\) ligado\./)
     assert.equal(t.store.lerAjuste('rotina_lembrete'), '1')
-    assert.match(await pagina(t.app, 'bot'), /Lembrete ao cliente, 1 dia antes da avaliação<\/b> <span class="status veio">LIGADO/)
+    assert.match(await pagina(t.app, 'bot'), /Lembrete da avaliação ao cliente<\/b> <span class="status veio">LIGADO/)
     await t.app.request(`/admin/rotinas?${T}`, form({ rotina: 'lembrete', ligar: '0' }))
     assert.equal(t.store.lerAjuste('rotina_lembrete'), '0')
   })

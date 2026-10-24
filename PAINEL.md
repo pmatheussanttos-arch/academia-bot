@@ -51,7 +51,7 @@ Os professores podem marcar direto no Google Agenda, escrevendo no fim do títul
 | Rotina | Padrão | O que faz |
 |---|---|---|
 | Resumo da semana | **Ligado** | Toda segunda, depois das 8h, manda no WhatsApp dos números de aviso o balanço da semana que passou (avaliações, quem veio, matrículas, conversas, gasto). Só vai para a equipe. |
-| Lembrete ao cliente | **Desligado** | Entre 17h e 20h do dia anterior, lembra o cliente da avaliação. |
+| Lembrete da avaliação | **Desligado** | Lembra o cliente da avaliação **cerca de 4 horas antes, no mesmo dia** (a partir das 7h e nunca com menos de 1 hora de antecedência). As avaliações da manhã cedo, em que 4 horas antes seria de madrugada, são lembradas na **véspera, entre 17h e 20h**. |
 | Aviso de gasto | Ligado (limite R$ 50) | Avisa a equipe a 80% e a 100% do limite do mês. Mude com `GASTO_LIMITE_MENSAL` na Render (0 desliga). |
 
 **Sobre o lembrete ao cliente (leia antes de ligar):** é mensagem automática saindo do número da academia, e isso aumenta um pouco o risco de o WhatsApp estranhar e bloquear o número. Por isso ele:
@@ -82,6 +82,12 @@ Limites (por causa do risco de bloqueio no modo QR):
 - não manda com o bot pausado nem com o WhatsApp desconectado.
 
 "Parou no meio de uma venda" é uma **estimativa**: o bot olha se a conversa falou de plano, preço, avaliação ou horário e terminou numa pergunta dele. Pode errar nos dois sentidos.
+
+## Como o bot trata o pagamento e a transferência
+
+- **Comprovante (imagem ou documento) no modo QR:** o bot **não se cala mais**. A equipe recebe um aviso ("📎 Cliente enviou...") e o bot agradece, diz que a equipe vai conferir (nunca diz que o pagamento foi confirmado) e pergunta se há mais alguma dúvida. Se não houver, leva ao cadastro: pede o **nome completo**; o plano ele já sabe pelo pagamento e o telefone é o do WhatsApp (e-mail e nascimento não são pedidos). O cadastro chega à equipe com o aviso "JÁ PAGOU: confira o comprovante".
+- **Cliente transferido que escreve 2 vezes** sem a equipe responder: o bot volta a atender. Se uma pessoa da equipe já assumiu a conversa, o bot não volta por esse caminho.
+- **Retomada de conversa parada:** se o cliente não responde em **15 minutos** no meio de uma venda, o bot manda "conseguiu ver minha mensagem? Vamos continuar?" (interruptor na aba Conversas, desligado por padrão).
 
 ## Limites que você precisa saber
 
