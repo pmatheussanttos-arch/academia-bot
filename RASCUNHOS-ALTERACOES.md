@@ -83,7 +83,10 @@ Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente a
 - Cartão nunca passa pelo WhatsApp: o bot manda um link de pagamento do Mercado Pago. A chave de acesso (Access Token) vai só em variável da Render, nunca no chat.
 - Fases sugeridas: (1) bot manda o link e, quando o Mercado Pago avisar "aprovado", avisa a equipe, que lança a matrícula; (2) só então o bot confirma o pagamento ao cliente (a regra "nunca confirmar pagamento" só muda com a confirmação vinda do Mercado Pago); (3) integração com a plataforma da academia, se existir.
 
+**Taxa vista no simulador do Mercado Pago (24/10/2026, print do Matheus):** cobrar R$ 100,00 no cartão, recebendo em 7 dias, custa **até R$ 4,98** (≈ 5%), mais a taxa de parcelamento se parcelar. Para o 3x por semana (R$ 89,90) são ≈ R$ 4,50; para o Livre (R$ 99,90) ≈ R$ 5,00. O Matheus achou caro. Alternativa levantada por Claude: **Pix gerado pelo Mercado Pago** (valor fixo, aviso automático de pagamento aprovado, taxa normalmente bem menor que a do cartão; conferir no simulador escolhendo Pix) e cartão continua só na recepção. Comparar também com a taxa da maquininha da recepção e com os outros prazos de recebimento do simulador (14 e 30 dias, se existirem na conta dele).
+
 **ABERTO:**
+0. Seguir com cartão online (taxa ≈ 5%), trocar por Pix do Mercado Pago, ou deixar tudo como está?
 1. O link cobra o quê? (a) só a 1ª mensalidade (R$ 89,90 ou R$ 99,90); (b) 1ª mensalidade + avaliação de R$ 35 (R$ 124,90 ou R$ 134,90), que é o que o cliente novo paga hoje "no ato"; (c) outro.
 2. As mensalidades seguintes dos planos básicos: como são cobradas hoje (recepção, plataforma)? O link pagaria só a primeira vez; cobrança automática todo mês seria outra etapa (Assinaturas do Mercado Pago), mais complexa.
 3. Nome da plataforma da academia (para saber se dá para integrar a matrícula).
