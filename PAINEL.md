@@ -65,7 +65,7 @@ O texto fica no `mensagens.md`, na seção `lembrete-avaliacao` (aceita `{nome}`
 
 ## Conversas paradas: aviso à equipe e lembrete ao cliente
 
-**Aviso à equipe (ligado por padrão):** se o bot transfere um cliente para a equipe e ninguém responde em **30 minutos**, ele manda no WhatsApp dos números de aviso: nome, número, última mensagem do cliente, motivo e há quanto tempo espera. Se passarem **2 horas** depois desse aviso, manda **um segundo** (e nunca mais). Só com a academia funcionando (seg a sex 5h–12h e 14h–21h, sáb 8h–11h; o horário fica no `agenda.json`, em `funcionamento`).
+**Aviso à equipe (ligado por padrão):** se o bot transfere um cliente para a equipe e ninguém responde em **30 minutos**, ele manda no WhatsApp dos números de aviso: nome, número, última mensagem do cliente, motivo e há quanto tempo espera. É **um aviso só** por transferência (não há segundo aviso), além do aviso que já chega na hora da transferência. Só com a academia funcionando (seg a sex 5h–12h e 14h–21h, sáb 8h–11h; o horário fica no `agenda.json`, em `funcionamento`).
 
 **Lembrete ao cliente (desligado por padrão, com interruptor na aba Conversas):** uma mensagem curta, **no máximo uma por conversa**:
 - cliente **transferido e sem resposta da equipe há 2 horas**: "Oi, [nome]! Aqui é o GFIT da GarageFit 😊 Desculpa a demora. Ficou alguma dúvida ou posso te ajudar a finalizar seu agendamento?", e a conversa volta para o bot;

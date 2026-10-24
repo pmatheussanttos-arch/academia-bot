@@ -110,21 +110,29 @@ describe('aviso à equipe: cliente transferido sem resposta', () => {
     assert.match(t.avisos[1]!, /Nome: \(sem nome\)/)
   })
 
-  it('repete UMA vez, 2 horas depois do primeiro aviso, e nunca mais', async () => {
+  it('UM aviso só por transferência: nunca um segundo, por mais que o tempo passe', async () => {
     const t = montar({}, em(SEXTA, '09:30'))
     transferida(t)
     await t.a.alertasEquipe()
     assert.equal(t.avisos.length, 1)
-    t.relogio.agora = em(SEXTA, '11:29')
-    assert.equal(await t.a.alertasEquipe(), 0)
-    t.relogio.agora = em(SEXTA, '11:30')
-    assert.equal(await t.a.alertasEquipe(), 1)
-    assert.match(t.avisos[1]!, /Segundo aviso: o cliente continua esperando há 2h30/)
-    for (const h of ['12:00', '15:00', '18:00', '20:00']) {
+    for (const h of ['09:31', '10:30', '11:30', '11:31', '12:00', '14:30', '18:00', '20:00']) {
       t.relogio.agora = em(SEXTA, h)
       await t.a.alertasEquipe()
+      await t.a.tick()
     }
-    assert.equal(t.avisos.length, 2, 'nunca um terceiro')
+    assert.equal(t.avisos.length, 1)
+    assert.doesNotMatch(t.avisos[0]!, /Segundo aviso/)
+  })
+
+  it('transferência antiga (mais de 3 horas de espera) não gera aviso: sem enxurrada quando a academia abre', async () => {
+    const t = montar({}, em(SEXTA, '09:00'))
+    transferida(t, CHAT, em(SEXTA, '05:30')) // 3h30 de espera
+    assert.equal(await t.a.alertasEquipe(), 0)
+    t.relogio.agora = em(SEXTA, '08:30') // 3h exatas: ainda vale
+    assert.equal(await t.a.alertasEquipe(), 1)
+    const u = montar({}, em('2026-10-17', '08:00'))
+    transferida(u, CHAT, em(SEXTA, '19:00')) // ontem à noite: 13h de espera
+    assert.equal(await u.a.alertasEquipe(), 0)
   })
 
   it('a equipe respondeu: nada, e se respondeu depois do primeiro aviso, não repete', async () => {
@@ -160,7 +168,7 @@ describe('aviso à equipe: cliente transferido sem resposta', () => {
     assert.match(t.avisos[0]!, /há 2h30/)
     t.relogio.agora = em(SEXTA, '14:01')
     await t.a.alertasEquipe()
-    assert.equal(t.avisos.length, 1, 'o segundo só 2h depois do primeiro, não logo em seguida')
+    assert.equal(t.avisos.length, 1, 'não repete')
   })
 
   it('sábado só das 8h às 11h; domingo e feriado, nunca', async () => {

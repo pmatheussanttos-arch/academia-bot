@@ -23,7 +23,8 @@ const HORA = 3_600_000
 
 /** Avisos à equipe. */
 export const PRIMEIRO_AVISO_APOS_MIN = 30
-export const SEGUNDO_AVISO_APOS_MIN = 120 // depois do primeiro aviso
+/** Passadas 3 horas de espera o aviso não serve mais (a equipe já viu): evita uma enxurrada de avisos velhos quando a academia abre. */
+export const AVISO_VALIDO_ATE_MIN = 180
 /** Lembretes ao cliente. */
 export const LEMBRETE_TRANSFERIDA_APOS_MIN = 120
 export const LEMBRETE_PARADA_APOS_MIN = 15
@@ -134,13 +135,13 @@ export class Acompanhamento {
   // Aviso à equipe
   // -------------------------------------------------------------------------------------------------------------------
 
-  private textoDoAlerta(t: TransferenciaSemResposta, segundo: boolean): string {
+  private textoDoAlerta(t: TransferenciaSemResposta): string {
     const historico = this.d.store.historico(t.chat, 300)
     const nome = nomeInformado(historico) || t.nomePerfil.trim() || '(sem nome)'
     const ultima = this.ultimaMensagemDoCliente(historico)?.conteudo.replace(/\s+/g, ' ').trim() ?? '(nenhuma)'
     const espera = tempoEspera(Math.max(0, Math.floor((this.agoraMs() - t.ts) / MIN)))
     return [
-      segundo ? `🔁 Segundo aviso: o cliente continua esperando há ${espera}` : `⏳ Cliente esperando a equipe há ${espera}`,
+      `⏳ Cliente esperando a equipe há ${espera}`,
       `Nome: ${nome}`,
       `WhatsApp: ${formatarWhatsapp(t.chat)}`,
       `Última mensagem do cliente: "${ultima.length > 200 ? `${ultima.slice(0, 200)}…` : ultima}"`,
@@ -150,7 +151,7 @@ export class Acompanhamento {
   }
 
   /**
-   * Cliente transferido que a equipe não respondeu: aviso depois de 30 min e, uma vez só, outro 2 horas depois do primeiro.
+   * Cliente transferido que a equipe não respondeu: UM aviso, depois de 30 min (nunca um segundo: a equipe confere o WhatsApp o tempo todo).
    * Só com a academia funcionando (a equipe presente). Devolve quantos avisos saíram.
    */
   async alertasEquipe(): Promise<number> {
@@ -162,19 +163,11 @@ export class Acompanhamento {
     let enviados = 0
     for (const t of store.transferenciasSemResposta(agora - JANELA_CLIENTE_HORAS * HORA)) {
       const esperaMin = (agora - t.ts) / MIN
-      const primeiro = store.acompanhamentoFeito(t.chat, 'alerta_equipe_1', t.id)
-      let segundo = false
-      if (!primeiro) {
-        if (esperaMin < PRIMEIRO_AVISO_APOS_MIN) continue
-      } else {
-        if (store.acompanhamentoFeito(t.chat, 'alerta_equipe_2', t.id)) continue
-        if (agora - primeiro.ts < SEGUNDO_AVISO_APOS_MIN * MIN) continue
-        segundo = true
-      }
-      if (!store.registrarAcompanhamento(t.chat, segundo ? 'alerta_equipe_2' : 'alerta_equipe_1', t.id, 'enviado', agora)) continue // antes de enviar: no máximo uma vez
-      await notificar(this.textoDoAlerta(t, segundo))
+      if (esperaMin < PRIMEIRO_AVISO_APOS_MIN || esperaMin > AVISO_VALIDO_ATE_MIN) continue
+      if (!store.registrarAcompanhamento(t.chat, 'alerta_equipe_1', t.id, 'enviado', agora)) continue // antes de enviar: no máximo uma vez
+      await notificar(this.textoDoAlerta(t))
       enviados++
-      console.log(`[acompanhamento] ${segundo ? 'segundo aviso' : 'aviso'} à equipe: cliente esperando há ${Math.floor(esperaMin)} min`)
+      console.log(`[acompanhamento] aviso à equipe: cliente esperando há ${Math.floor(esperaMin)} min`)
     }
     return enviados
   }
