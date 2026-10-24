@@ -28,6 +28,20 @@ export interface EstadoRotinas {
   gastoLimiteReais: number
 }
 
+export interface EstadoRetomada {
+  /** Lembrete ao cliente (retomada de conversa). Desligado até o dono ligar. */
+  ligada: boolean
+  /** Aviso à equipe de cliente esperando. */
+  avisoEquipeLigado: boolean
+  /** Só funciona no modo QR. */
+  disponivel: boolean
+  automaticasHoje: number
+  limiteDia: number
+  avisosEquipeNaSemana: number
+  /** Os lembretes enviados (e os que falharam), do mais novo para o mais antigo. */
+  lembretes: Array<{ ts: number; chat: string; nome: string; tipo: string; resultado: string; texto: string }>
+}
+
 export interface DadosPainel {
   token: string
   aba: Aba
@@ -43,6 +57,7 @@ export interface DadosPainel {
   matriculas: MatriculaSalva[]
   toleranciaQuedaMin: number
   rotinas?: EstadoRotinas
+  retomada?: EstadoRetomada
   /** Frase curta do resultado da última ação (ex.: "Maria veio à avaliação. Anotado!"). */
   aviso?: string
 }
@@ -307,6 +322,32 @@ function cartaoEspera(d: DadosPainel): string {
       .join('')}</ul></section>`
 }
 
+const TIPO_LEMBRETE: Record<string, string> = {
+  lembrete_transferida: 'Transferido e a equipe não respondeu',
+  lembrete_parou: 'Parou no meio da venda',
+}
+
+function cartaoRetomada(d: DadosPainel): string {
+  const r = d.retomada
+  if (!r) return ''
+  const interruptor = (nome: 'retomada' | 'alerta_espera', ligada: boolean) =>
+    r.disponivel ? botaoForm(d.token, '/admin/rotinas', { rotina: nome, ligar: ligada ? '0' : '1' }, ligada ? 'Desligar' : 'Ligar', ligada ? 'desligar' : '', d.aba) : ''
+  const rotuloResultado = (x: string) => (x === 'enviado' ? '✅ enviado' : x === 'enviando' ? '⏳ enviando' : `❌ ${esc(x.replace(/^falhou:\s*/, 'falhou: '))}`)
+  const lista = r.lembretes.length
+    ? `<ul class="lista">${r.lembretes
+        .map(
+          (l) => `<li><div><b>${esc(l.nome || rotuloContato(l.chat))}</b>${l.nome ? ` <span>${esc(rotuloContato(l.chat))}</span>` : ''}<br><span>${esc(TIPO_LEMBRETE[l.tipo] ?? l.tipo)} · ${esc(rotulo(l.ts, d.fuso).dia)} às ${esc(rotulo(l.ts, d.fuso).hora)}</span>${l.texto ? `<br><span>“${esc(l.texto)}”</span>` : ''}</div><div class="acoes"><span class="status ${l.resultado === 'enviado' ? 'veio' : 'faltou'}">${rotuloResultado(l.resultado)}</span></div></li>`,
+        )
+        .join('')}</ul>`
+    : '<p class="dica">Nenhum lembrete enviado ainda.</p>'
+  return `<section class="cartao rotinas"><div class="titulo">🔔 Retomada de conversas</div>
+    <div class="linha"><div><b>Lembrete ao cliente</b> <span class="status ${r.ligada ? 'veio' : 'faltou'}">${r.ligada ? 'LIGADO' : 'DESLIGADO'}</span>
+      <p class="dica">Uma mensagem curta, no máximo uma por conversa: para o cliente transferido que a equipe não respondeu em 2 horas (o bot volta a atender depois) e para quem parou no meio de uma venda há 3 horas. Só para quem escreveu nas últimas 24h, com a academia funcionando, entre 8h e 20h, com intervalo de 1 a 5 minutos entre mensagens e no máximo ${r.limiteDia} automáticas por dia. Nunca para quem disse "pare" ou "não quero", nem para a equipe. <b>Atenção:</b> mensagem automática aumenta o risco de o WhatsApp bloquear o número; por isso começa desligado.${r.disponivel ? '' : ' Só funciona no modo QR.'}</p></div>${interruptor('retomada', r.ligada)}</div>
+    <div class="linha"><div><b>Aviso à equipe</b> <span class="status ${r.avisoEquipeLigado ? 'veio' : 'faltou'}">${r.avisoEquipeLigado ? 'LIGADO' : 'DESLIGADO'}</span>
+      <p class="dica">Cliente transferido que a equipe não respondeu em 30 minutos: o bot avisa os números de aviso (uma vez de novo se passar 2 horas), só com a academia funcionando. Avisos enviados nos últimos 7 dias: ${r.avisosEquipeNaSemana}.</p></div>${interruptor('alerta_espera', r.avisoEquipeLigado)}</div>
+    <h3>Quem recebeu lembrete (hoje: ${r.automaticasHoje} de ${r.limiteDia} mensagens automáticas)</h3>${lista}</section>`
+}
+
 function abaConversas(d: DadosPainel): string {
   const b = d.resumo.bot
   const perguntas = new Map<string, { n: number; ts: number; texto: string }>()
@@ -321,7 +362,7 @@ function abaConversas(d: DadosPainel): string {
        <p class="dica">Perguntas em que o bot disse “essa informação eu não tenho”. Para ele passar a saber, escreva a resposta no arquivo instrucoes.md.</p>`
     : '<p class="dica">Nenhuma nos últimos 30 dias.</p>'
   const horas = b.mensagensPorHora.map((valor, h) => ({ rotulo: `${String(h).padStart(2, '0')}h`, valor })).filter((x) => x.valor > 0)
-  return `${cartaoEspera(d)}${cartaoConversas(d.conversas, d.token, d.fuso, d.aba)}
+  return `${cartaoEspera(d)}${cartaoConversas(d.conversas, d.token, d.fuso, d.aba)}${cartaoRetomada(d)}
     <section class="cartao"><div class="titulo">🤖 O bot dá conta sozinho?</div>${numeros([
       { valor: b.conversasNoMes, legenda: `conversas novas em ${d.resumo.mesRotulo}` },
       { valor: b.conversasQueChamaramEquipe, legenda: 'pediram a equipe' },

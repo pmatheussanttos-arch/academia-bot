@@ -7,6 +7,8 @@ import type { Config, ConfigWhatsapp } from './config.js'
 import type { FilaPorChave } from './fila.js'
 import { Metricas } from './metricas.js'
 import { abaValida, paginaPainel } from './painel-dono.js'
+import { nomeInformado } from './acompanhamento.js'
+import { AUTOMATICAS_POR_DIA, enviadasHoje } from './automaticas.js'
 import { definirRotina, rotinaLigada } from './rotinas.js'
 import { AcessoAgenda } from './acesso-agenda.js'
 import { paginaAgenda } from './pagina-agenda.js'
@@ -157,6 +159,22 @@ export function criarApp(deps: AppDeps): Hono {
             resumo: { ligada: rotinaLigada(store, 'resumo'), ...(store.lerAjuste('resumo_ultimo') ? { ultimo: store.lerAjuste('resumo_ultimo')!.split('-').reverse().join('/') } : {}) },
             lembrete: { ligada: rotinaLigada(store, 'lembrete'), enviadosNaSemana: store.contarLembretes(Date.now() - 7 * 86_400_000, 'enviado'), disponivel: cfg.modoWhatsapp === 'qr' },
             gastoLimiteReais: cfg.gastoLimiteMensalReais,
+          },
+          retomada: {
+            ligada: rotinaLigada(store, 'retomada'),
+            avisoEquipeLigado: rotinaLigada(store, 'alerta_espera'),
+            disponivel: cfg.modoWhatsapp === 'qr',
+            automaticasHoje: enviadasHoje(store, deps.agenda),
+            limiteDia: AUTOMATICAS_POR_DIA,
+            avisosEquipeNaSemana: store.contarAcompanhamentos(Date.now() - 7 * 86_400_000, 'alerta_equipe_'),
+            lembretes: store.acompanhamentos(Date.now() - 30 * 86_400_000, 'lembrete_', 30).map((l) => ({
+              ts: l.ts,
+              chat: l.chat,
+              nome: nomeInformado(store.historico(l.chat, 300)),
+              tipo: l.tipo,
+              resultado: l.resultado,
+              texto: l.contexto,
+            })),
           },
           aviso: c.req.query('aviso')?.slice(0, 200),
         }),
@@ -337,14 +355,17 @@ export function criarApp(deps: AppDeps): Hono {
     if (!autorizado(c.req.header('authorization'), c.req.query('token'))) return c.json({ erro: 'não autorizado' }, 401)
     const dados = await lerDados(c)
     const rotina = dados.rotina
-    if (rotina !== 'resumo' && rotina !== 'lembrete') return c.json({ erro: 'informe "rotina": "resumo" ou "lembrete"' }, 400)
+    if (rotina !== 'resumo' && rotina !== 'lembrete' && rotina !== 'retomada' && rotina !== 'alerta_espera') {
+      return c.json({ erro: 'informe "rotina": "resumo", "lembrete", "retomada" ou "alerta_espera"' }, 400)
+    }
     const ligar = dados.ligar === '1' || dados.ligar === 1 || dados.ligar === true
-    if (rotina === 'lembrete' && ligar && cfg.modoWhatsapp !== 'qr') {
-      return voltarAoPainel(c, dados, 'O lembrete só funciona no modo QR.') ?? c.json({ erro: 'o lembrete só funciona no modo QR' }, 400)
+    const NOMES = { resumo: 'Resumo da semana', lembrete: 'Lembrete da avaliação (véspera)', retomada: 'Lembrete ao cliente (retomada de conversa)', alerta_espera: 'Aviso à equipe de cliente esperando' }
+    if (rotina !== 'resumo' && ligar && cfg.modoWhatsapp !== 'qr') {
+      return voltarAoPainel(c, dados, `${NOMES[rotina]} só funciona no modo QR.`) ?? c.json({ erro: 'só funciona no modo QR' }, 400)
     }
     definirRotina(store, rotina, ligar)
     console.log(`[rotinas] ${rotina} ${ligar ? 'ligado' : 'desligado'} pelo painel`)
-    return voltarAoPainel(c, dados, `${rotina === 'resumo' ? 'Resumo da semana' : 'Lembrete ao cliente'} ${ligar ? 'ligado' : 'desligado'}.`) ?? c.json({ rotina, ligada: ligar })
+    return voltarAoPainel(c, dados, `${NOMES[rotina]} ${ligar ? 'ligado' : 'desligado'}.`) ?? c.json({ rotina, ligada: ligar })
   })
 
   // "Já lancei na plataforma": a recepção marca (ou desmarca) uma matrícula feita pelo WhatsApp.

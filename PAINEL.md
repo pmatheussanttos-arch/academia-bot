@@ -29,6 +29,7 @@ No topo de todas as abas há um selo verde ou vermelho com o estado do WhatsApp.
 - **O bot dá conta sozinho?** Quantas conversas novas, quantas pediram a equipe e a % resolvida só pelo bot.
 - **O que o bot não soube responder:** as perguntas em que ele disse "essa informação eu não tenho". Para ele aprender, escreva a resposta no `instrucoes.md`.
 - Horários em que os clientes mais escrevem.
+- **Retomada de conversas:** os dois interruptores (veja abaixo) e a lista de **quem recebeu lembrete** (nome, telefone, motivo, quando, texto e se foi enviado).
 
 ### 🤖 Bot
 - Conexão com o WhatsApp e o QR code (a página se atualiza sozinha enquanto falta conectar).
@@ -61,6 +62,26 @@ Os professores podem marcar direto no Google Agenda, escrevendo no fim do títul
 - manda uma vez só por avaliação.
 
 O texto fica no `mensagens.md`, na seção `lembrete-avaliacao` (aceita `{nome}`, `{dia}` e `{hora}`).
+
+## Conversas paradas: aviso à equipe e lembrete ao cliente
+
+**Aviso à equipe (ligado por padrão):** se o bot transfere um cliente para a equipe e ninguém responde em **30 minutos**, ele manda no WhatsApp dos números de aviso: nome, número, última mensagem do cliente, motivo e há quanto tempo espera. Se passarem **2 horas** depois desse aviso, manda **um segundo** (e nunca mais). Só com a academia funcionando (seg a sex 5h–12h e 14h–21h, sáb 8h–11h; o horário fica no `agenda.json`, em `funcionamento`).
+
+**Lembrete ao cliente (desligado por padrão, com interruptor na aba Conversas):** uma mensagem curta, **no máximo uma por conversa**:
+- cliente **transferido e sem resposta da equipe há 2 horas**: "Oi, [nome]! Aqui é o GFIT da GarageFit 😊 Desculpa a demora. Ficou alguma dúvida ou posso te ajudar a finalizar seu agendamento?", e a conversa volta para o bot;
+- cliente que **parou no meio de uma venda há 3 horas** (o bot perguntou algo sobre plano, preço ou agendamento e ele sumiu): "Oi, [nome], conseguiu ver? Posso te ajudar a finalizar?".
+
+Os textos ficam no `mensagens.md` (`lembrete-transferida` e `lembrete-parada`). O `[nome]` é o que o cliente **disse** ao bot (nunca o do perfil do WhatsApp); sem nome, a mensagem sai sem ele.
+
+Limites (por causa do risco de bloqueio no modo QR):
+- só para quem escreveu nas **últimas 24 horas**;
+- só com a academia funcionando e **entre 8h e 20h**;
+- **intervalo aleatório de 1 a 5 minutos** entre mensagens e no máximo **10 automáticas por dia** (somando com o lembrete de avaliação);
+- **nunca** para quem escreveu "pare", "não quero", "sem interesse" e parecidos, nem para os números da equipe, nem para grupos;
+- se a equipe respondeu no meio-tempo, ou o cliente já agendou ou matriculou, não manda nada;
+- não manda com o bot pausado nem com o WhatsApp desconectado.
+
+"Parou no meio de uma venda" é uma **estimativa**: o bot olha se a conversa falou de plano, preço, avaliação ou horário e terminou numa pergunta dele. Pode errar nos dois sentidos.
 
 ## Limites que você precisa saber
 

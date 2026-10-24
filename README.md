@@ -120,7 +120,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/status.ts` | Página de status para o monitor externo avisar quedas |
 | `src/matricula.ts` | Matrícula pela conversa: conferência dos dados e aviso à equipe |
 | `src/painel-dono.ts`, `src/metricas.ts` | Painel em abas (/conectar) e os números dele (agenda, funil, custo, saúde) |
-| `src/rotinas.ts` | Resumo semanal, lembrete ao cliente e alerta de gasto |
+| `src/rotinas.ts`, `src/acompanhamento.ts`, `src/automaticas.ts` | Resumo semanal, lembretes, alerta de gasto, aviso de cliente esperando e retomada de conversas (com os limites anti-bloqueio) |
 | `src/sala-de-teste.ts`, `src/pagina-teste.ts` | Página /teste: conversa com o bot no navegador, isolada do mundo real |
 | `agenda.json` | **Você edita**: dias e horários das visitas, períodos (manhã/tarde/noite), antecedência, feriados |
 | `mensagens.md` | **Você edita**: textos de "avaliação agendada" e "pedido recebido" |
@@ -129,7 +129,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/atendimento.ts` | Fluxo de cada mensagem: limites, áudio, arquivos, erros |
 | `src/app.ts`, `src/server.ts` | Servidor e webhook da Meta |
 | `src/store.ts` | Banco de dados (SQLite) |
-| `test/` | `npm test` roda 470 testes sem gastar nada |
+| `test/` | `npm test` roda mais de 520 testes sem gastar nada |
 
 ## Próximas fases
 

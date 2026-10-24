@@ -338,7 +338,7 @@ describe('rotinas automáticas no painel (aba Bot)', () => {
     const t = montar()
     const res = await t.app.request(`/admin/rotinas?${T}`, form({ rotina: 'lembrete', ligar: '1', voltar: 'conectar', aba: 'bot' }))
     assert.equal(res.status, 303)
-    assert.match(decodeURIComponent(res.headers.get('location')!), /^\/conectar\?token=segredo-admin&aba=bot&aviso=Lembrete ao cliente ligado\./)
+    assert.match(decodeURIComponent(res.headers.get('location')!), /^\/conectar\?token=segredo-admin&aba=bot&aviso=Lembrete da avaliação \(véspera\) ligado\./)
     assert.equal(t.store.lerAjuste('rotina_lembrete'), '1')
     assert.match(await pagina(t.app, 'bot'), /Lembrete ao cliente, 1 dia antes da avaliação<\/b> <span class="status veio">LIGADO/)
     await t.app.request(`/admin/rotinas?${T}`, form({ rotina: 'lembrete', ligar: '0' }))
@@ -370,5 +370,66 @@ describe('rotinas automáticas no painel (aba Bot)', () => {
     const html = await pagina(montar(CONECTADO, { GASTO_LIMITE_MENSAL: '0' }).app, 'bot')
     assert.match(html, /Aviso de gasto da IA<\/b> <span class="status faltou">DESLIGADO/)
     assert.match(html, /Defina GASTO_LIMITE_MENSAL/)
+  })
+})
+
+describe('aba Conversas: retomada de conversas (lembretes ao cliente)', () => {
+  it('mostra os dois interruptores: lembrete DESLIGADO por padrão, aviso à equipe LIGADO', async () => {
+    const html = await pagina(montar().app, 'conversas')
+    assert.match(html, /Retomada de conversas/)
+    assert.match(html, /Lembrete ao cliente<\/b> <span class="status faltou">DESLIGADO/)
+    assert.match(html, /Aviso à equipe<\/b> <span class="status veio">LIGADO/)
+    assert.match(html, /por isso começa desligado/)
+    assert.match(html, /Nenhum lembrete enviado ainda/)
+  })
+
+  it('um clique liga o lembrete, volta para a aba Conversas e fica guardado; outro desliga', async () => {
+    const t = montar()
+    const res = await t.app.request(`/admin/rotinas?${T}`, form({ rotina: 'retomada', ligar: '1', voltar: 'conectar', aba: 'conversas' }))
+    assert.equal(res.status, 303)
+    assert.match(decodeURIComponent(res.headers.get('location')!), /^\/conectar\?token=segredo-admin&aba=conversas&aviso=Lembrete ao cliente \(retomada de conversa\) ligado\./)
+    assert.equal(t.store.lerAjuste('rotina_retomada'), '1')
+    assert.match(await pagina(t.app, 'conversas'), /Lembrete ao cliente<\/b> <span class="status veio">LIGADO/)
+    await t.app.request(`/admin/rotinas?${T}`, form({ rotina: 'retomada', ligar: '0' }))
+    assert.equal(t.store.lerAjuste('rotina_retomada'), '0')
+    await t.app.request(`/admin/rotinas?${T}`, json({ rotina: 'alerta_espera', ligar: '0' }))
+    assert.match(await pagina(t.app, 'conversas'), /Aviso à equipe<\/b> <span class="status faltou">DESLIGADO/)
+  })
+
+  it('lista quem recebeu lembrete: nome, telefone, tipo, quando, texto e resultado (e escapa o que veio do cliente)', async () => {
+    const t = montar()
+    const agora = Date.now()
+    t.store.adicionarMensagem('553288465841', 'assistant', 'Primeiramente, qual o seu nome?', agora - 5000)
+    t.store.adicionarMensagem('553288465841', 'user', 'Andressa', agora - 4000)
+    t.store.registrarAcompanhamento('553288465841', 'lembrete_transferida', 1, 'enviado', agora - 1000, 'Oi, Andressa! Aqui é o GFIT 😊')
+    t.store.registrarAcompanhamento('5511900000001', 'lembrete_parou', 2, 'falhou: WhatsApp caiu', agora - 500, '<b>oi</b>')
+    t.store.registrarAcompanhamento('5511900000002', 'pulado', 3, 'pulado: pediu para não receber mensagens', agora)
+    t.store.registrarAcompanhamento('5511900000003', 'alerta_equipe_1', 4, 'enviado', agora)
+    const html = await pagina(t.app, 'conversas')
+    assert.match(html, /<b>Andressa<\/b> <span>\+55 \(32\) 8846-5841<\/span>/)
+    assert.match(html, /Transferido e a equipe não respondeu/)
+    assert.match(html, /Parou no meio da venda/)
+    assert.match(html, /“Oi, Andressa! Aqui é o GFIT 😊”/)
+    assert.match(html, /✅ enviado/)
+    assert.match(html, /❌ falhou: WhatsApp caiu/)
+    assert.match(html, /&lt;b&gt;oi&lt;\/b&gt;/)
+    assert.doesNotMatch(html, /<b>oi<\/b>/)
+    assert.doesNotMatch(html, /5511900000002/, 'quem foi pulado não aparece como "recebeu"')
+    assert.match(html, /Avisos enviados nos últimos 7 dias: 1/)
+    assert.match(html, /hoje: 1 de 10 mensagens automáticas/)
+  })
+
+  it('modo Cloud: não deixa ligar (só funciona no QR)', async () => {
+    const t = montar(CONECTADO, { WHATSAPP_MODO: 'cloud' })
+    for (const rotina of ['retomada', 'alerta_espera']) {
+      assert.equal((await t.app.request(`/admin/rotinas?${T}`, json({ rotina, ligar: '1' }))).status, 400, rotina)
+    }
+    assert.equal(t.store.lerAjuste('rotina_retomada'), undefined)
+  })
+
+  it('sem token ninguém liga', async () => {
+    const t = montar()
+    assert.equal((await t.app.request('/admin/rotinas', json({ rotina: 'retomada', ligar: '1' }))).status, 401)
+    assert.equal(t.store.lerAjuste('rotina_retomada'), undefined)
   })
 })
