@@ -3,7 +3,7 @@
 Estes são os textos que o bot envia ao cliente quando uma avaliação é agendada, quando um pedido de visita é registrado, quando passa a conversa para uma pessoa (seção "transferencia") e quando registra uma matrícula (seções "matricula-pix" e "matricula-cartao" — é nelas que fica a chave Pix).
 A linha {confirmacao} vira o link para a recepção (quando NUMERO_RECEPCAO está preenchido) ou o aviso de que a equipe confirma.
 Pode editar o texto à vontade. Mantenha os títulos que começam com "##" e as palavras entre chaves, como {dia} e {hora}:
-o bot troca por dados reais. A seção "lembrete-avaliacao" é o lembrete do dia anterior (ligado pelo painel, aba Bot); aceita {nome}, {dia} e {hora}. As seções "lembrete-transferida" (cliente transferido que a equipe não respondeu em 2 horas) e "lembrete-parada" (cliente que parou no meio de uma venda, depois de 3 horas) são as retomadas de conversa (painel, aba Conversas); aceitam {nome}. As linhas {linha_valor} e {linha_mensalidade} vêm das três últimas seções.
+o bot troca por dados reais. A seção "valores" é a mensagem de planos e preços (vai em 3 mensagens curtas: as linhas [[nova mensagem]] separam uma da outra; não apague). A seção "lembrete-avaliacao" é o lembrete do dia anterior (ligado pelo painel, aba Bot); aceita {nome}, {dia} e {hora}. As seções "lembrete-transferida" (cliente transferido que a equipe não respondeu em 2 horas) e "lembrete-parada" (cliente que parou no meio de uma venda, depois de 3 horas) são as retomadas de conversa (painel, aba Conversas); aceitam {nome}. As linhas {linha_valor} e {linha_mensalidade} vêm das três últimas seções.
 
 ## avaliacao-agendada
 Perfeito! Avaliação agendada! ✅
@@ -100,3 +100,21 @@ Oi, {nome}! Aqui é o GFIT da GarageFit 😊 Desculpa a demora. Ficou alguma dú
 
 ## lembrete-parada
 Oi, {nome}, conseguiu ver? Posso te ajudar a finalizar?
+
+## valores
+Temos opções que se encaixam no seu momento:
+
+💪 3x por semana — R$ 89,90
+💪 Acesso todos os dias — R$ 99,90
+[[nova mensagem]]
+Mas quem realmente quer resultado escolhe nossos planos VIP, que saem muito mais em conta:
+
+🔥 Trimestral VIP — R$ 89,90/mês
+🔥 Semestral VIP — R$ 79,90/mês
+🔥 Anual VIP — R$ 69,90/mês
+[[nova mensagem]]
+✅ Todos com acesso livre
+✅ Avaliação gratuita (nos 3 planos VIP)
+✅ Convidado grátis (15 dias no Trimestral | 1 meses no Anual)
+
+Qual desses encaixa melhor no seu objetivo? 💪🏼

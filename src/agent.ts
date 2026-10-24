@@ -62,6 +62,33 @@ export function textoMatricula(cfg: Config, pagamento: 'pix' | 'cartao', nome: s
   return renderizar(modelo, { nome, plano })
 }
 
+/** Mensagem de planos e preços (3 mensagens curtas, separadas por [[nova mensagem]]). Reserva, caso o mensagens.md falhe. */
+export const VALORES_RESERVA = `Temos opções que se encaixam no seu momento:
+
+💪 3x por semana — R$ 89,90
+💪 Acesso todos os dias — R$ 99,90
+[[nova mensagem]]
+Mas quem realmente quer resultado escolhe nossos planos VIP, que saem muito mais em conta:
+
+🔥 Trimestral VIP — R$ 89,90/mês
+🔥 Semestral VIP — R$ 79,90/mês
+🔥 Anual VIP — R$ 69,90/mês
+[[nova mensagem]]
+✅ Todos com acesso livre
+✅ Avaliação gratuita (nos 3 planos VIP)
+✅ Convidado grátis (15 dias no Trimestral | 1 meses no Anual)
+
+Qual desses encaixa melhor no seu objetivo? 💪🏼`
+
+/** Texto dos valores: o da seção "valores" do mensagens.md (editável pelo dono), ou o de reserva. */
+export function textoValores(cfg: Config): string {
+  try {
+    return carregarMensagens(cfg.mensagensPath).valores?.trim() || VALORES_RESERVA
+  } catch {
+    return VALORES_RESERVA // mensagens.md ilegível: o cliente não pode ficar sem os valores
+  }
+}
+
 /** Mensagem fixa para o cliente quando a conversa precisa de uma pessoa. */
 export function msgHandoff(cfg: Config, motivo: string): string {
   const link = linkHandoff(cfg, motivo)
@@ -103,6 +130,13 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
       required: ['motivo'],
       additionalProperties: false,
     },
+  },
+  {
+    name: 'enviar_valores',
+    description:
+      'Devolve a mensagem oficial com os planos e os valores (planos básicos e VIP), já dividida em 3 mensagens curtas. Use quando a pessoa quiser saber dos planos, dos valores, da mensalidade ou do preço, ou depois de ela dizer que quer ver os planos. Não precisa perguntar antes se ela quer treinar 3x por semana ou todos os dias. Nunca monte a lista de valores por conta própria: envie o que esta ferramenta devolver.',
+    strict: true,
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'consultar_horarios',
@@ -240,6 +274,13 @@ async function executarFerramenta(
       link
         ? `Equipe avisada. Diga ao cliente, em uma frase curta, que para falar com a recepção agora ele deve tocar no link abaixo (a mensagem já vai pronta). Envie o link exatamente como está, sem alterar. Não faça mais perguntas nem chamada para ação.\n${link}`
         : `Equipe avisada. Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nada e sem acrescentar texto antes ou depois. Não faça perguntas nem chamada para ação, e não cite telefone nenhum.\n---\n${textoTransferencia(deps.cfg)}\n---`,
+    )
+  }
+
+  if (bloco.name === 'enviar_valores') {
+    return resultado(
+      bloco,
+      `Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nenhuma palavra, sem acrescentar texto antes ou depois, e mantendo as linhas [[nova mensagem]] exatamente onde estão (elas dividem a resposta em 3 mensagens curtas). Já termina com a pergunta; não faça outra.\n---\n${textoValores(deps.cfg)}\n---`,
     )
   }
 

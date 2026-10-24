@@ -1,10 +1,12 @@
-# Rascunhos de alterações (ainda NÃO aplicadas no bot)
+# Rascunhos de alterações
 
-Aqui ficam as mudanças combinadas com o Matheus que ainda não foram para o `instrucoes.md`. Nada deste arquivo afeta o bot: ele serve para juntar as ideias e aplicar tudo de uma vez, quando o Matheus mandar.
+**Situação:** o item 1 (mensagem de valores) já foi aplicado no bot. O item 2 (pagamento por cartão) ainda é só ideia.
+
+Aqui ficam as mudanças combinadas com o Matheus. Este arquivo não afeta o bot: serve para juntar as ideias e aplicar quando o Matheus mandar. O texto vivo da mensagem de valores fica no `mensagens.md` (seção `valores`).
 
 ---
 
-## 1. Mensagem de valores (24/10/2026)
+## 1. Mensagem de valores (24/10/2026) — APLICADA em 24/10/2026
 
 **Quando usar:** depois que o cliente responde se quer treinar 3x por semana ou todos os dias (hoje o bot manda só o plano que a pessoa escolheu + os VIP, em texto corrido).
 

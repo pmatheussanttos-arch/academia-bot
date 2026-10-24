@@ -33,14 +33,17 @@ describe('identidade e condução da conversa (GFIT)', () => {
     assert.match(nome, /Nunca invente nem use o nome do perfil/)
   })
 
-  it('pergunta a frequência antes de dar preço', () => {
-    assert.match(i, /"Você gostaria de treinar 3x por semana ou todos os dias\?" Não dê nenhum preço antes de saber isso/)
-    assert.match(i, /\*\*Só dê preço depois de saber o que a pessoa quer\*\*/)
-    assert.match(i, /Nunca dar preço antes de saber a frequência/)
+  it('preço vem da ferramenta enviar_valores, sem perguntar a frequência antes', () => {
+    assert.match(i, /use a ferramenta `enviar_valores` e envie \*\*exatamente\*\* o que ela devolver/)
+    assert.match(i, /\*\*Não pergunte antes\*\* se a pessoa quer 3x por semana ou todos os dias/)
+    assert.match(i, /nunca monte a lista de valores por conta própria/)
+    assert.doesNotMatch(i, /Você gostaria de treinar 3x por semana ou todos os dias/)
+    assert.doesNotMatch(i, /Nunca dar preço antes de saber a frequência/)
+    assert.doesNotMatch(i, /Só dê preço depois de saber o que a pessoa quer/)
   })
 
   it('objetivo, recomendação do VIP maior e aceitar o "não"', () => {
-    assert.match(i, /"Qual é o seu objetivo hoje\? Assim consigo te indicar o melhor plano\."/)
+    assert.match(i, /"Qual desses encaixa melhor no seu objetivo\?"/)
     assert.match(i, /recomende o VIP de maior duração/)
     assert.match(i, /R\$ 69,90, menos que o 3x por semana de R\$ 89,90/)
     assert.match(i, /aceite na hora, sem insistir.*no máximo uma vez/s)
@@ -61,12 +64,13 @@ describe('como os preços são explicados', () => {
     assert.match(i, /\*\*mensal\*\*, \*\*sem fidelidade\*\* e \*\*sem parcelamento\*\*/)
   })
 
-  it('VIP: parcelas no cartão e o total à vista, nunca "por mês"', () => {
+  it('VIP: parcelas no cartão e o total à vista quando a pessoa perguntar como paga', () => {
     assert.match(i, /Trimestral VIP: \*\*3x de R\$ 89,90\*\* no cartão, ou \*\*R\$ 269,70 à vista\*\*/)
     assert.match(i, /Semestral VIP: \*\*6x de R\$ 79,90\*\* no cartão, ou \*\*R\$ 479,40 à vista\*\*/)
     assert.match(i, /Anual VIP: \*\*12x de R\$ 69,90\*\* no cartão, ou \*\*R\$ 838,80 à vista\*\*/)
-    assert.match(i, /nunca diga "R\$ X por mês" sozinho/)
-    assert.doesNotMatch(i, /Trimestral VIP: R\$ 89,90\/mês|Semestral VIP: R\$ 79,90\/mês|Anual VIP: R\$ 69,90\/mês/, 'o formato antigo "por mês" não pode ter sobrado')
+    assert.match(i, /explique que é \*\*parcelado no cartão\*\*/)
+    assert.match(i, /Nunca diga que o VIP é uma mensalidade que continua depois do período do plano/)
+    assert.doesNotMatch(i, /Trimestral VIP: R\$ 89,90\/mês|Semestral VIP: R\$ 79,90\/mês|Anual VIP: R\$ 69,90\/mês/, 'a lista "/mês" só existe na mensagem de valores (mensagens.md), não nas regras')
   })
 
   it('as contas do à vista batem com as parcelas (o desconto já está no plano)', () => {
@@ -178,8 +182,7 @@ describe('não repetir a pergunta do objetivo', () => {
 
   it('as instruções limitam o objetivo a uma pergunta só e mandam variar', () => {
     const i = instrucoes()
-    assert.match(i, /pergunte \*\*uma única vez nesta conversa\*\*/)
-    assert.match(i, /nunca mais use essa frase nem uma parecida/)
+    assert.match(i, /não pergunte o objetivo de novo, nem com outras palavras/)
     assert.match(i, /Nunca repita uma pergunta que você já fez nesta conversa/)
     assert.match(i, /não volte a cobrar a resposta/i)
     assert.match(i, /pergunta \*\*diferente\*\* das anteriores/)
