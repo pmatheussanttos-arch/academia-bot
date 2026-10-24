@@ -73,6 +73,18 @@ describe('links de pagamento (InfinitePay)', () => {
     assert.doesNotMatch(m, /\{|\}/, 'nenhuma variável ficou sem trocar')
   })
 
+  it('VIP: avisa até quantas parcelas (3x, 6x, 12x); plano básico: nada de parcelamento', () => {
+    const cfg = criarConfigDeTeste()
+    assert.match(textoPagamentoCartao(cfg, 'trimestral_vip')!, /Na própria página você pode parcelar em até 3x\./)
+    assert.match(textoPagamentoCartao(cfg, 'semestral_vip')!, /parcelar em até 6x\./)
+    assert.match(textoPagamentoCartao(cfg, 'anual_vip')!, /parcelar em até 12x\./)
+    for (const basico of ['3x_por_semana', 'acesso_livre'] as const) {
+      const m = textoPagamentoCartao(cfg, basico)!
+      assert.doesNotMatch(m, /parcelar/)
+      assert.doesNotMatch(m, /\n\n\n/, 'sem linha em branco sobrando')
+    }
+  })
+
   it('plano sem link (linha comentada ou apagada): sem mensagem de link e a matrícula cai na recepção', () => {
     const cfg = cfgComLinks(['anual_vip | https://link.infinitepay.io/x/1', '# acesso_livre | https://link.infinitepay.io/x/2'])
     assert.ok(textoPagamentoCartao(cfg, 'anual_vip'))
@@ -143,7 +155,11 @@ describe('instruções sobre o pagamento no cartão', () => {
     assert.match(i, /pode ser pago pelo \*\*link seguro\*\* da InfinitePay/)
     assert.match(i, /\*\*nunca\*\* peça número, validade, código ou senha/)
     assert.match(i, /Depois do Pix ou do pagamento pelo link, peça o comprovante e chame a equipe para conferir/)
-    assert.match(i, /Não prometa parcelas nem valores que não estejam aqui/)
+    assert.match(i, /Trimestral em até 3x, Semestral em até 6x, Anual em até 12x/)
+    assert.match(i, /\(3x por semana e Acesso livre\) são mensais, \*\*sem parcelamento\*\*/)
+    assert.match(i, /Não invente o valor da parcela nem juros/)
+    assert.match(i, /\*\*Comprovante, sempre:\*\* para finalizar qualquer matrícula paga por \*\*Pix\*\* ou pelo \*\*link do cartão\*\*, peça SEMPRE o comprovante/)
+    assert.match(i, /Sem o comprovante, a matrícula não é finalizada/)
     assert.doesNotMatch(i, /Pelo WhatsApp não dá para pagar no cartão/)
   })
 })

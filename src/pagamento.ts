@@ -19,6 +19,9 @@ export const PLANOS_PAGAMENTO = {
 export type ChavePlano = keyof typeof PLANOS_PAGAMENTO
 export const CHAVES_PLANOS = Object.keys(PLANOS_PAGAMENTO) as ChavePlano[]
 
+/** Até quantas parcelas a página do link oferece em cada plano VIP (os planos básicos são mensais, sem parcelamento). */
+export const PARCELAS_MAXIMAS: Partial<Record<ChavePlano, number>> = { trimestral_vip: 3, semestral_vip: 6, anual_vip: 12 }
+
 /** Só endereços https da própria InfinitePay: o que estiver fora disso no arquivo é ignorado, nunca enviado ao cliente. */
 const LINK_VALIDO = /^https:\/\/([a-z0-9-]+\.)*infinitepay\.io\/\S+$/i
 
@@ -48,7 +51,7 @@ export function chaveDoPlano(texto: string): ChavePlano | undefined {
 }
 
 export const PAGAMENTO_CARTAO_RESERVA =
-  'Segue o link para pagar no cartão ({plano}) 👇\n{link}\n\nÉ o pagamento seguro da InfinitePay: os dados do cartão você digita só lá, nunca por aqui. Depois de pagar, é só me enviar o comprovante que a recepção confere e finaliza o seu cadastro 😊'
+  'Segue o link para pagar no cartão ({plano}) 👇\n{link}\n{parcelamento}\n\nÉ o pagamento seguro da InfinitePay: os dados do cartão você digita só lá, nunca por aqui. Depois de pagar, é só me enviar o comprovante que a recepção confere e finaliza o seu cadastro 😊'
 
 export const CARTAO_NA_RECEPCAO_RESERVA = 'O cartão é passado na recepção da academia. Pode vir no seu horário que a equipe finaliza tudo com você. Qualquer dúvida, tô aqui!'
 
@@ -65,7 +68,9 @@ export function textoPagamentoCartao(cfg: Config, chave: ChavePlano): string | u
   const s = secoes(cfg)
   const link = lerLinksPagamento(s)[chave]
   if (!link) return undefined
-  return renderizar(s['pagamento-cartao']?.trim() || PAGAMENTO_CARTAO_RESERVA, { plano: PLANOS_PAGAMENTO[chave], link })
+  const parcelas = PARCELAS_MAXIMAS[chave]
+  const parcelamento = parcelas ? `Na própria página você pode parcelar em até ${parcelas}x.` : ''
+  return renderizar(s['pagamento-cartao']?.trim() || PAGAMENTO_CARTAO_RESERVA, { plano: PLANOS_PAGAMENTO[chave], link, parcelamento })
 }
 
 /** O trecho "como pagar no cartão" da mensagem de matrícula: o link, se o plano tem, ou o aviso de pagar na recepção. */

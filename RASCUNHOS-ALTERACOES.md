@@ -75,7 +75,7 @@ Qual desses encaixa melhor no seu objetivo? 💪🏼
 
 ## 2. Pagamento por cartão pelo bot — APLICADO em 24/10/2026 (link da InfinitePay)
 
-**Como ficou:** os 5 links (3x, Livre, Trimestral, Semestral e Anual VIP) estão no `mensagens.md`, seção `links-pagamento` (linha com `#` na frente fica desligada). O bot manda o link do plano (ferramenta `enviar_link_pagamento`, e automaticamente na mensagem de matrícula no cartão), pede o comprovante e chama a equipe; nunca confirma pagamento. **ATENÇÃO:** os links do 3x e do Livre cobram R$ 90,00 e R$ 100,00, e os planos custam R$ 89,90 e R$ 99,90: conferir.
+**Como ficou:** os 5 links (3x, Livre, Trimestral, Semestral e Anual VIP) estão no `mensagens.md`, seção `links-pagamento` (linha com `#` na frente fica desligada). Decisões do Matheus: **os VIP ficam com link também** (para não perder a primeira impressão de venda); **a página do link parcela**, então o bot informa até 3x (Trimestral), 6x (Semestral) e 12x (Anual) e os básicos seguem sem parcelamento; **o comprovante é sempre pedido** para finalizar a matrícula (Pix ou link). O bot manda o link do plano (ferramenta `enviar_link_pagamento`, e automaticamente na mensagem de matrícula no cartão), pede o comprovante e chama a equipe; nunca confirma pagamento. **ATENÇÃO:** os links do 3x e do Livre cobram R$ 90,00 e R$ 100,00, e os planos custam R$ 89,90 e R$ 99,90: conferir.
 
 Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente até pagar.
 
