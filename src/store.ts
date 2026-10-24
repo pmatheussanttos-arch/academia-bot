@@ -100,6 +100,9 @@ export interface HandoffAtivo {
  * mensagens já processadas (a Meta reenvia webhooks) e conversas passadas para humanos.
  * O arquivo precisa ficar em disco persistente na hospedagem.
  */
+/** Motivos de conversa com a equipe que indicam que uma PESSOA assumiu (ao contrário de uma transferência feita pelo bot). */
+export const MOTIVO_DA_EQUIPE = /^(Transferido pela equipe|A equipe respondeu)/
+
 export class Store {
   private db: DatabaseSync
 

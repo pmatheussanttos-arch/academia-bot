@@ -69,7 +69,7 @@ O texto fica no `mensagens.md`, na seção `lembrete-avaliacao` (aceita `{nome}`
 
 **Lembrete ao cliente (desligado por padrão, com interruptor na aba Conversas):** uma mensagem curta, **no máximo uma por conversa**:
 - cliente **transferido e sem resposta da equipe há 2 horas**: "Oi, [nome]! Aqui é o GFIT da GarageFit 😊 Desculpa a demora. Ficou alguma dúvida ou posso te ajudar a finalizar seu agendamento?", e a conversa volta para o bot;
-- cliente que **parou no meio de uma venda há 3 horas** (o bot perguntou algo sobre plano, preço ou agendamento e ele sumiu): "Oi, [nome], conseguiu ver? Posso te ajudar a finalizar?".
+- cliente que **parou no meio de uma venda há 15 minutos** (o bot perguntou algo sobre plano, preço ou agendamento e ele sumiu): "Oi, [nome]! Conseguiu ver minha mensagem? Vamos continuar? 😊".
 
 Os textos ficam no `mensagens.md` (`lembrete-transferida` e `lembrete-parada`). O `[nome]` é o que o cliente **disse** ao bot (nunca o do perfil do WhatsApp); sem nome, a mensagem sai sem ele.
 

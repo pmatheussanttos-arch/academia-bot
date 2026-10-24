@@ -4,7 +4,7 @@ import type { ServicoAgenda } from './agendamento.js'
 import { normalizarNumero, type Config } from './config.js'
 import { ehAvaliacao, nomeDoCliente, segundaDaSemana, statusDoEvento, whatsappDoEvento } from './painel-agenda.js'
 import { calcularStatus, type Status } from './status.js'
-import type { Comparecimento, EventoRegistrado, MatriculaSalva, StatusComparecimento, Store } from './store.js'
+import { MOTIVO_DA_EQUIPE, type Comparecimento, type EventoRegistrado, type MatriculaSalva, type StatusComparecimento, type Store } from './store.js'
 import type { EventoAgenda } from './google.js'
 
 /**
@@ -26,7 +26,6 @@ export const ESPERA_ALERTA_MIN = 15
 /** O WhatsApp está conectado e um cliente ficou tanto tempo sem resposta: o bot pode estar mudo. */
 export const MUDO_APOS_MIN = 10
 const CACHE_AGENDA_MS = 60_000
-const MOTIVO_DA_EQUIPE = /^(Transferido pela equipe|A equipe respondeu)/
 
 /** Preço por milhão de tokens, em dólar (entrada, saída). Tabela cacheada: confira em anthropic.com/pricing. */
 const PRECOS: Record<string, { entrada: number; saida: number }> = {

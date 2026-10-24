@@ -26,14 +26,14 @@ export const PRIMEIRO_AVISO_APOS_MIN = 30
 export const SEGUNDO_AVISO_APOS_MIN = 120 // depois do primeiro aviso
 /** Lembretes ao cliente. */
 export const LEMBRETE_TRANSFERIDA_APOS_MIN = 120
-export const LEMBRETE_PARADA_APOS_MIN = 180
+export const LEMBRETE_PARADA_APOS_MIN = 15
 export const JANELA_CLIENTE_HORAS = 24
 /** Mensagem a cliente nunca sai de madrugada, mesmo que a academia abra cedo. */
 export const HORA_CLIENTE_DE = 8
 export const HORA_CLIENTE_ATE = 20
 
 export const LEMBRETE_TRANSFERIDA_PADRAO = 'Oi, {nome}! Aqui é o GFIT da GarageFit 😊 Desculpa a demora. Ficou alguma dúvida ou posso te ajudar a finalizar seu agendamento?'
-export const LEMBRETE_PARADA_PADRAO = 'Oi, {nome}, conseguiu ver? Posso te ajudar a finalizar?'
+export const LEMBRETE_PARADA_PADRAO = 'Oi, {nome}! Conseguiu ver minha mensagem? Vamos continuar? 😊'
 
 const semAcento = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
@@ -213,7 +213,7 @@ export class Acompanhamento {
   /**
    * UMA mensagem curta, no máximo uma por conversa:
    * - transferida e sem resposta da equipe há 2 horas (e o bot volta a atender a conversa depois);
-   * - parada no meio de uma venda há 3 horas.
+   * - parada no meio de uma venda há 15 minutos.
    * Só com a academia funcionando, entre 8h e 20h, para quem escreveu nas últimas 24h, respeitando o teto e o intervalo
    * das mensagens automáticas. Devolve quantas saíram (0 ou 1).
    */

@@ -1,6 +1,7 @@
 import { ehNumeroDaEquipe, remetentePermitido } from './config.js'
 import { anotar, encaminharParaHumano, msgErroTecnico, responder, type AgenteDeps } from './agent.js'
-import { linkRecepcao } from './recepcao.js'
+import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
+import { MOTIVO_DA_EQUIPE, type Store } from './store.js'
 import type { ClienteWhatsapp, MensagemRecebida } from './whatsapp.js'
 
 export interface AtendimentoDeps extends AgenteDeps {
@@ -112,6 +113,20 @@ export function tirarPerguntaRepetida(resposta: string, anteriores: string[]): s
   return normalizarFrase(resto).length >= 15 ? resto : resposta
 }
 
+/**
+ * Cliente transferido para a equipe (pelo próprio bot) que escreve 2 vezes sem ninguém responder: é sinal de que quer falar algo
+ * a mais, e o bot volta a atender. Se uma PESSOA da equipe já assumiu a conversa, nunca volta por este caminho.
+ */
+function clienteInsistiu(store: Store, chat: string, agora: number): boolean {
+  const h = store.handoffsAtivos(agora).find((x) => x.chat === chat)
+  if (!h || MOTIVO_DA_EQUIPE.test(h.motivo)) return false
+  if (store.contarMensagensDoCliente(chat, h.ts) < 2) return false
+  store.liberarHandoff(chat)
+  anotar(() => store.registrarEvento('retomado_pelo_cliente', chat, 'escreveu 2 vezes depois da transferência'))
+  console.log(`[atendimento] +${chat} escreveu 2 vezes sem resposta da equipe: o bot volta a atender`)
+  return true
+}
+
 /** A resposta é a frase de "essa informação eu não tenho": entra na lista de dúvidas que a equipe pode ensinar ao bot. */
 export function ehSemResposta(resposta: string): boolean {
   return /essa informa[cç][aã]o eu n[aã]o tenho/i.test(resposta)
@@ -161,7 +176,7 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
       console.log(`[pausa] mensagem de +${msg.from} guardada sem resposta: o assistente está pausado`)
       return
     }
-    if (store.emHandoff(msg.from, agora)) {
+    if (store.emHandoff(msg.from, agora) && !clienteInsistiu(store, msg.from, agora)) {
       console.log(`[atendimento] sem resposta a +${msg.from}: a equipe está na conversa (o bot volta após 1h sem mensagem humana)`)
       return // a equipe está cuidando
     }
@@ -174,10 +189,19 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
 
     if (!ehTexto) {
       if (ARQUIVOS[msg.tipo]) {
-        await encaminharParaHumano(deps, msg.from, msg.nome, `Enviou ${ARQUIVOS[msg.tipo]}${msg.texto ? ` com a legenda "${msg.texto.slice(0, 200)}"` : ''}. Pode ser um comprovante.`)
-        return await enviar(deps, msg, msgArquivo(cfg))
+        const descricao = `${ARQUIVOS[msg.tipo]}${msg.texto ? ` com a legenda "${msg.texto.slice(0, 200)}"` : ''}`
+        if (cfg.modoWhatsapp !== 'qr') {
+          await encaminharParaHumano(deps, msg.from, msg.nome, `Enviou ${descricao}. Pode ser um comprovante.`)
+          return await enviar(deps, msg, msgArquivo(cfg))
+        }
+        // No modo QR o arquivo chega no próprio celular da academia: a equipe só precisa ser avisada. O bot NÃO se cala:
+        // segue a conversa (agradece, pergunta se há mais alguma dúvida e leva ao cadastro), sem dizer que conferiu nada.
+        await deps.notificar(
+          [`📎 Cliente enviou ${descricao}`, `Nome: ${msg.nome?.trim() || '(sem nome no perfil)'}`, `WhatsApp: ${formatarWhatsapp(msg.from)}`, 'Pode ser o comprovante de pagamento: confira no WhatsApp da academia. O bot continua atendendo a conversa.'].join('\n'),
+        )
+      } else {
+        return await enviar(deps, msg, msgAudio(cfg))
       }
-      return await enviar(deps, msg, msgAudio(cfg))
     }
 
     let resposta: string

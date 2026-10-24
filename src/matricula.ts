@@ -109,9 +109,10 @@ export function nascimentoBonito(iso: string): string {
 }
 
 /** Aviso que vai para o WhatsApp da equipe, com tudo o que ela precisa para lançar na plataforma. */
-export function avisoDeMatricula(d: DadosMatricula, chat: string): string {
+export function avisoDeMatricula(d: DadosMatricula, chat: string, jaPagou = false): string {
   return [
     '📝 MATRÍCULA PELO WHATSAPP (lançar na plataforma)',
+    ...(jaPagou ? ['💰 O cliente diz que JÁ PAGOU: confira o comprovante antes de finalizar'] : []),
     `Nome: ${d.nome}`,
     `Telefone: +${d.telefone}`,
     ...(d.email ? [`E-mail: ${d.email}`] : ['E-mail: (não informado)']),

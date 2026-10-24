@@ -69,11 +69,13 @@ describe('modo QR: o cliente nunca recebe número de telefone', () => {
     await tratarMensagem(erro.deps, msg())
     assert.equal(erro.enviadas[0], MSG_ERRO_TECNICO)
 
-    const midia = montar([])
+    const midia = montar([texto('Recebi, obrigado! A equipe vai conferir ✅ Tem mais alguma dúvida?')])
     await tratarMensagem(midia.deps, msg({ tipo: 'audio', texto: undefined }))
     await tratarMensagem(midia.deps, msg({ tipo: 'image', texto: undefined, from: '5511966665555' }))
     assert.equal(midia.enviadas[0], MSG_AUDIO)
-    assert.equal(midia.enviadas[1], MSG_ARQUIVO)
+    assert.match(midia.enviadas[1]!, /Recebi, obrigado/, 'no QR a imagem não vira mensagem fixa: o bot segue a conversa')
+    assert.equal(midia.store.emHandoff('5511966665555'), false, 'e não se cala')
+    assert.match(midia.avisos[0]!, /📎 Cliente enviou uma imagem/)
 
     for (const e of [...erro.enviadas, ...midia.enviadas]) assert.doesNotMatch(e, PESSOAL)
   })

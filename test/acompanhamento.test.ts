@@ -262,29 +262,35 @@ describe('lembrete ao cliente transferido e sem resposta da equipe (2 horas)', (
   })
 })
 
-describe('lembrete a quem parou no meio de uma venda (3 horas)', () => {
-  it('depois de 3 horas manda UMA mensagem curta; antes, não', async () => {
-    const t = montar({}, em(SEXTA, '11:59'))
+describe('lembrete a quem parou no meio de uma venda (15 minutos)', () => {
+  it('depois de 15 minutos manda UMA mensagem curta; antes, não', async () => {
+    const t = montar({}, em(SEXTA, '09:14'))
     ligarRetomada(t)
     parada(t, CHAT, em(SEXTA, '09:00'))
-    assert.equal(await t.a.lembretes(), 0)
+    assert.equal(LEMBRETE_PARADA_APOS_MIN, 15)
     t.relogio.agora = em(SEXTA, '09:00') + LEMBRETE_PARADA_APOS_MIN * MIN - 1
     assert.equal(await t.a.lembretes(), 0, 'faltou 1 ms')
-    t.relogio.agora = em(SEXTA, '12:00')
-    // 12:00 é o intervalo de almoço da academia: espera reabrir
-    assert.equal(await t.a.lembretes(), 0)
-    t.relogio.agora = em(SEXTA, '14:00')
+    t.relogio.agora = em(SEXTA, '09:15')
     assert.equal(await t.a.lembretes(), 1)
-    assert.equal(t.enviadas[0]!.texto, 'Oi, Andressa, conseguiu ver? Posso te ajudar a finalizar?')
+    assert.equal(t.enviadas[0]!.texto, 'Oi, Andressa! Conseguiu ver minha mensagem? Vamos continuar? 😊')
     assert.equal(t.store.acompanhamentos(0, 'lembrete_parou').length, 1)
   })
 
-  it('sem nome na conversa não sai "Oi, , conseguiu"', async () => {
+  it('se vence no almoço da academia, espera reabrir (e ainda manda, dentro das 24 horas)', async () => {
+    const t = montar({}, em(SEXTA, '12:05'))
+    ligarRetomada(t)
+    parada(t, CHAT, em(SEXTA, '11:50'))
+    assert.equal(await t.a.lembretes(), 0, 'academia fechada para o almoço')
+    t.relogio.agora = em(SEXTA, '14:00')
+    assert.equal(await t.a.lembretes(), 1)
+  })
+
+  it('sem nome na conversa sai "Oi!", sem vírgula solta', async () => {
     const t = montar({}, em(SEXTA, '14:00'))
     ligarRetomada(t)
     parada(t, CHAT, em(SEXTA, '09:00'), { semNome: true })
     await t.a.lembretes()
-    assert.equal(t.enviadas[0]!.texto, 'Oi, conseguiu ver? Posso te ajudar a finalizar?')
+    assert.equal(t.enviadas[0]!.texto, 'Oi! Conseguiu ver minha mensagem? Vamos continuar? 😊')
   })
 
   it('só para quem estava numa venda e ficou sem responder uma pergunta do bot', async () => {

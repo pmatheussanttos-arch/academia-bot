@@ -94,7 +94,7 @@ describe('ferramenta registrar_matricula', () => {
 
   it('existe, pede todos os campos e deixa claro que não confirma pagamento', () => {
     const schema = ferramenta.input_schema as { properties: Record<string, { enum?: string[] }>; required: string[] }
-    assert.deepEqual(schema.required.sort(), ['email', 'nascimento', 'nome', 'observacao', 'pagamento', 'plano', 'telefone'])
+    assert.deepEqual(schema.required.sort(), ['email', 'ja_pagou', 'nascimento', 'nome', 'observacao', 'pagamento', 'plano', 'telefone'])
     assert.deepEqual(schema.properties.pagamento!.enum, ['pix', 'cartao'])
     assert.match(ferramenta.description!, /Não confirma pagamento: quem confere é a recepção/)
   })
@@ -166,15 +166,20 @@ describe('instruções da matrícula', () => {
   it('conduz sempre para a venda e pede os dados um por mensagem', () => {
     assert.match(i, /levar a pessoa a fechar um plano/)
     assert.match(i, /recolha os dados \*\*um por mensagem\*\*/)
-    for (const campo of ['Nome completo', 'Telefone com DDD', 'E-mail', 'Data de nascimento']) assert.ok(i.includes(campo), campo)
+    assert.match(i, /\*\*Nome completo\*\* \(nome e sobrenome\)/)
+    assert.match(i, /O \*\*telefone\*\* é o do próprio WhatsApp da conversa: \*\*não pergunte\*\*/)
+    assert.match(i, /\*\*E-mail e data de nascimento não são necessários\*\*/)
     assert.match(i, /"Vai ser no Pix ou no cartão\?"/)
     assert.match(i, /ferramenta \*\*registrar_matricula\*\*/)
   })
 
-  it('o bot NUNCA diz que o pagamento caiu, e o fechamento é honesto', () => {
-    assert.match(i, /nunca diga que o pagamento foi recebido, confirmado ou que "está tudo pago" — você não tem como conferir/)
-    assert.match(i, /Seu cadastro está pronto e sua avaliação está agendada para \[dia\] às \[hora\]/)
-    assert.match(i, /recepção conferir o pagamento e finalizar o seu cadastro/)
+  it('o bot NUNCA diz que o pagamento caiu; depois do comprovante pergunta se há dúvida e leva ao cadastro, sem transferir', () => {
+    assert.match(i, /\*\*Nunca\*\* diga que o pagamento foi recebido, confirmado ou que "está tudo pago": você não tem como conferir/)
+    assert.match(i, /\*\*Peça SEMPRE o comprovante\*\*/)
+    assert.match(i, /Pergunte \*\*só\*\*: "Tem mais alguma dúvida\?"/)
+    assert.match(i, /Peça o \*\*nome completo \(nome e sobrenome\)\*\*\. O plano você já sabe, porque foi o que ela pagou/)
+    assert.match(i, /registrar_matricula\*\* com \*\*ja_pagou = true\*\*/)
+    assert.match(i, /Nesse momento NÃO use chamar_humano e NÃO diga "vou te transferir para um atendente"/)
     assert.match(REGRAS_FIXAS, /Nunca diga que um pagamento foi recebido, confirmado ou compensado/)
   })
 })

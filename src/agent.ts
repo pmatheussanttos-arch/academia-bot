@@ -51,16 +51,19 @@ const MATRICULA_RESERVA: Record<'pix' | 'cartao', string> = {
   cartao: 'Prontinho, {nome}! Seu cadastro já está registrado ✅\n\n📋 Plano: {plano}\n💳 Pagamento no cartão\n\n{pagamento_cartao}',
 }
 
+/** Cadastro feito DEPOIS do pagamento: não repete a chave Pix nem o link, e não confirma que o dinheiro caiu. */
+const MATRICULA_PAGA_RESERVA = 'Prontinho, {nome}! Seu cadastro está registrado ✅\n\n📋 Plano: {plano}\n\nA recepção vai conferir o seu comprovante e finalizar tudo. Qualquer dúvida, é só chamar! 😊'
+
 /** Texto da matrícula: o do mensagens.md (editável pelo dono) ou o de reserva, se o arquivo falhar. */
-export function textoMatricula(cfg: Config, pagamento: 'pix' | 'cartao', nome: string, plano: string): string {
-  const chave = pagamento === 'pix' ? 'matricula-pix' : 'matricula-cartao'
-  let modelo = MATRICULA_RESERVA[pagamento]
+export function textoMatricula(cfg: Config, pagamento: 'pix' | 'cartao', nome: string, plano: string, jaPagou = false): string {
+  const chave = jaPagou ? 'matricula-paga' : pagamento === 'pix' ? 'matricula-pix' : 'matricula-cartao'
+  let modelo = jaPagou ? MATRICULA_PAGA_RESERVA : MATRICULA_RESERVA[pagamento]
   try {
     modelo = carregarMensagens(cfg.mensagensPath)[chave]?.trim() || modelo
   } catch {
     // mensagens.md ilegível: usa a reserva, o cliente não pode ficar sem resposta
   }
-  return renderizar(modelo, { nome, plano, pagamento_cartao: pagamento === 'cartao' ? trechoCartaoDaMatricula(cfg, plano) : '' })
+  return renderizar(modelo, { nome, plano, pagamento_cartao: pagamento === 'cartao' && !jaPagou ? trechoCartaoDaMatricula(cfg, plano) : '' })
 }
 
 /** Mensagem de planos e preços (3 mensagens curtas, separadas por [[nova mensagem]]). Reserva, caso o mensagens.md falhe. */
@@ -197,20 +200,21 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
   {
     name: 'registrar_matricula',
     description:
-      'Registra a matrícula do cliente e avisa a equipe, que depois lança na plataforma da academia. Use quando o cliente decidir fechar um plano E você já tiver recolhido nome completo, telefone, e-mail (opcional), data de nascimento (opcional), o plano escolhido e a forma de pagamento. A ferramenta devolve a mensagem final que você deve enviar ao cliente, com a chave Pix quando for o caso. Não confirma pagamento: quem confere é a recepção.',
+      'Registra a matrícula do cliente e avisa a equipe, que depois lança na plataforma da academia. Use quando o cliente decidir fechar um plano E você já tiver o nome completo, o plano escolhido e a forma de pagamento (o telefone é o do próprio WhatsApp; e-mail e nascimento são opcionais). Se o cliente JÁ PAGOU (Pix ou link) e mandou o comprovante, use ja_pagou = true. A ferramenta devolve a mensagem final que você deve enviar ao cliente, com a chave Pix ou o link quando for o caso. Não confirma pagamento: quem confere é a recepção.',
     strict: true,
     input_schema: {
       type: 'object',
       properties: {
         nome: { type: 'string', description: 'Nome e sobrenome que o cliente escreveu nesta conversa.' },
-        telefone: { type: 'string', description: 'Telefone com DDD que o cliente informou.' },
+        telefone: { type: 'string', description: 'Telefone com DDD, se o cliente informou. Use "" se não: o sistema usa o número do WhatsApp desta conversa.' },
         email: { type: 'string', description: 'E-mail do cliente. Use "" se ele não quiser informar.' },
         nascimento: { type: 'string', description: 'Data de nascimento no formato DD/MM/AAAA. Use "" se ele não quiser informar.' },
         plano: { type: 'string', description: 'Plano escolhido, como o cliente vai reconhecer. Ex.: "Anual VIP (12x de R$ 69,90)".' },
         pagamento: { type: 'string', enum: ['pix', 'cartao'], description: 'Como o cliente vai pagar.' },
         observacao: { type: 'string', description: 'Algo que a equipe precise saber. Use "" se não houver.' },
+        ja_pagou: { type: 'boolean', description: 'true se o cliente já pagou (Pix ou link do cartão) e enviou o comprovante; a equipe então só confere o comprovante. false se ainda vai pagar.' },
       },
-      required: ['nome', 'telefone', 'email', 'nascimento', 'plano', 'pagamento', 'observacao'],
+      required: ['nome', 'telefone', 'email', 'nascimento', 'plano', 'pagamento', 'observacao', 'ja_pagou'],
       additionalProperties: false,
     },
   },
@@ -349,7 +353,7 @@ async function executarFerramenta(
     const v = validarMatricula(
       {
         nome: campo(entrada.nome, 80),
-        telefone: campo(entrada.telefone, 30),
+        telefone: campo(entrada.telefone, 30) || (/^55\d{10,11}$/.test(chat) ? chat : ''),
         email: campo(entrada.email, 120),
         nascimento: campo(entrada.nascimento, 20),
         plano: campo(entrada.plano, 80),
@@ -362,13 +366,14 @@ async function executarFerramenta(
 
     deps.store.registrarMatricula({ chat, ...v.dados }, agora.getTime())
     anotar(() => deps.store.registrarEvento('matricula', chat, v.dados.plano, agora.getTime()))
-    await deps.notificar(avisoDeMatricula(v.dados, chat))
+    const jaPagou = entrada.ja_pagou === true
+    await deps.notificar(avisoDeMatricula(v.dados, chat, jaPagou))
     console.log(`[matrícula] ${v.dados.nome} | ${v.dados.plano} | ${v.dados.pagamento}`)
 
     const primeiroNome = v.dados.nome.split(' ')[0]!
     return resultado(
       bloco,
-      `Matrícula registrada e equipe avisada. Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nada e sem acrescentar texto antes ou depois. Não diga que o pagamento foi recebido.\n---\n${textoMatricula(deps.cfg, v.dados.pagamento, primeiroNome, v.dados.plano)}\n---`,
+      `Matrícula registrada e equipe avisada. Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nada e sem acrescentar texto antes ou depois. Não diga que o pagamento foi recebido.\n---\n${textoMatricula(deps.cfg, v.dados.pagamento, primeiroNome, v.dados.plano, jaPagou)}\n---`,
     )
   }
 
