@@ -225,7 +225,7 @@ describe('lembrete ao cliente (dia anterior)', () => {
     assert.equal(t.enviadas.length, 1)
     assert.equal(t.enviadas[0]!.para, WA)
     assert.match(t.enviadas[0]!.texto, /^Oi, Maria! Passando para lembrar da sua avaliação/)
-    assert.match(t.enviadas[0]!.texto, /Sábado, 17\/10, às 10:00/)
+    assert.match(t.enviadas[0]!.texto, /GarageFit amanhã, às 10:00/)
     const historico = t.store.historico(WA, 10)
     assert.equal(historico.at(-1)!.papel, 'assistant')
     assert.equal(historico.at(-1)!.conteudo, t.enviadas[0]!.texto)
@@ -351,7 +351,7 @@ describe('lembrete ao cliente (dia anterior)', () => {
     const t = pronto()
     t.store.adicionarMensagem('5511966665555', 'user', 'oi', SEXTA_17H30 - 1000)
     aval(t.google, '2026-10-17', '10:00', 'Maria', WA)
-    aval(t.google, '2026-10-17', '11:00', 'João', '5511966665555')
+    aval(t.google, '2026-10-17', '10:30', 'João', '5511966665555')
     t.estado.falharEnvio = (para) => para === WA
     const erros = console.error
     console.error = () => {}
@@ -366,11 +366,72 @@ describe('lembrete ao cliente (dia anterior)', () => {
     assert.equal(t.store.contarLembretes(0, 'falhou: WhatsApp caiu'), 1)
   })
 
-  it('só avaliações de AMANHÃ (não de hoje nem de depois) e só eventos de avaliação', async () => {
+  it('não manda de depois de amanhã nem de eventos que não são avaliação', async () => {
     const t = pronto()
-    aval(t.google, '2026-10-16', '19:00', 'Hoje', WA)
     aval(t.google, '2026-10-18', '10:00', 'Depois', WA)
     t.google.eventos.push({ id: 'r', titulo: 'Reunião', ocupa: true, inicio: em('2026-10-17', '09:00'), fim: em('2026-10-17', '09:30'), privado: { whatsapp: WA } })
+    assert.equal(await t.rotinas.lembretes(), 0)
+  })
+
+  it('avaliação da tarde: lembra no MESMO dia, uns 4 horas antes', async () => {
+    const t = pronto()
+    aval(t.google, '2026-10-16', '15:00', 'Maria Silva', WA)
+    t.relogio.agora = em('2026-10-16', '10:59')
+    assert.equal(await t.rotinas.lembretes(), 0, 'faltam 4h01')
+    t.relogio.agora = em('2026-10-16', '11:00')
+    assert.equal(await t.rotinas.lembretes(), 1)
+    assert.match(t.enviadas[0]!.texto, /^Oi, Maria! Passando para lembrar da sua avaliação aqui na GarageFit hoje, às 15:00/)
+    t.relogio.agora = em('2026-10-16', '12:00')
+    assert.equal(await t.rotinas.lembretes(), 0, 'uma vez só')
+  })
+
+  it('não manda se já faltam menos de 1 hora (ou se já passou), nem antes das 7h', async () => {
+    const t = pronto()
+    aval(t.google, '2026-10-16', '15:00', 'Maria Silva', WA)
+    t.relogio.agora = em('2026-10-16', '14:01')
+    assert.equal(await t.rotinas.lembretes(), 0, 'faltam 59 min')
+    t.relogio.agora = em('2026-10-16', '15:30')
+    assert.equal(await t.rotinas.lembretes(), 0, 'já passou')
+    // 11:00 -> 4 horas antes são 7h: é a hora mais cedo permitida
+    const u = pronto()
+    aval(u.google, '2026-10-16', '11:00', 'Bia', WA)
+    u.relogio.agora = em('2026-10-16', '06:59')
+    assert.equal(await u.rotinas.lembretes(), 0)
+    u.relogio.agora = em('2026-10-16', '07:00')
+    assert.equal(await u.rotinas.lembretes(), 1)
+  })
+
+  it('avaliação cedo demais (manhã): lembra na VÉSPERA, das 17h às 20h, e não repete no dia', async () => {
+    const t = pronto() // sexta 17:30
+    aval(t.google, '2026-10-17', '07:00', 'Maria Silva', WA)
+    assert.equal(await t.rotinas.lembretes(), 1)
+    assert.match(t.enviadas[0]!.texto, /GarageFit amanhã, às 07:00/)
+    // no dia da avaliação, de manhã, nada mais
+    t.relogio.agora = em('2026-10-17', '06:00')
+    t.store.registrarLembrete('outro', 'x')
+    assert.equal(await t.rotinas.lembretes(), 0)
+
+    const u = pronto()
+    u.relogio.agora = em('2026-10-16', '16:59')
+    aval(u.google, '2026-10-17', '08:00', 'Bia', WA)
+    assert.equal(await u.rotinas.lembretes(), 0, 'antes das 17h da véspera')
+    u.relogio.agora = em('2026-10-16', '20:00')
+    assert.equal(await u.rotinas.lembretes(), 0, 'depois das 20h')
+  })
+
+  it('avaliação da tarde de amanhã NÃO é lembrada na véspera (será lembrada no dia, 4 horas antes)', async () => {
+    const t = pronto() // sexta 17:30
+    aval(t.google, '2026-10-17', '15:00', 'Maria Silva', WA)
+    assert.equal(await t.rotinas.lembretes(), 0)
+    t.relogio.agora = em('2026-10-17', '11:00')
+    assert.equal(await t.rotinas.lembretes(), 1)
+    assert.match(t.enviadas[0]!.texto, /GarageFit hoje, às 15:00/)
+  })
+
+  it('avaliação da manhã de HOJE que não foi lembrada na véspera não é lembrada tarde demais', async () => {
+    const t = pronto()
+    aval(t.google, '2026-10-16', '10:00', 'Maria Silva', WA)
+    t.relogio.agora = em('2026-10-16', '08:00')
     assert.equal(await t.rotinas.lembretes(), 0)
   })
 

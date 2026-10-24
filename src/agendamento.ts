@@ -54,6 +54,33 @@ function limparNome(n: string): string {
  * - Avaliação, com Google configurado: lê a agenda de verdade e cria o evento.
  * - Aula experimental, ou sem Google: só registra o pedido e a equipe confirma.
  */
+const emMinutos = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+
+/** "07:00" vira "7h" e "08:30" vira "8h30": como se escreve no WhatsApp. */
+export function horaFalada(hhmm: string): string {
+  const h = Number(hhmm.slice(0, 2))
+  const m = hhmm.slice(3, 5)
+  return m === '00' ? `${h}h` : `${h}h${m}`
+}
+
+/**
+ * Os 3 horários a oferecer: o primeiro livre e, a partir dele, os próximos com pelo menos 1 hora de diferença (ex.: 7h, 8h, 9h),
+ * em vez de uma lista longa. Se não houver espaço para isso, completa com os primeiros que sobrarem. Em ordem.
+ */
+export function sugestoesDeHorario(livres: string[]): string[] {
+  if (livres.length <= 3) return livres
+  const escolhidas = [livres[0]!]
+  for (const h of livres.slice(1)) {
+    if (escolhidas.length >= 3) break
+    if (emMinutos(h) >= emMinutos(escolhidas.at(-1)!) + 60) escolhidas.push(h)
+  }
+  for (const h of livres) {
+    if (escolhidas.length >= 3) break
+    if (!escolhidas.includes(h)) escolhidas.push(h)
+  }
+  return escolhidas.sort()
+}
+
 export class ServicoAgenda {
   private trava: Promise<unknown> = Promise.resolve()
 
@@ -122,7 +149,11 @@ export class ServicoAgenda {
     const { agenda } = this.d
     const quando = periodo === 'qualquer' ? '' : ` ${NOME_PERIODO[periodo]}`
     const noPeriodo = (hhmms: string[]) => (periodo === 'qualquer' ? hhmms : hhmms.filter((h) => periodoDe(agenda, h) === periodo))
-    const dica = (lista: string[]) => (lista.length > 4 ? ' Ofereça só 3 ou 4 desses, bem espalhados, e diga que há outros horários se a pessoa quiser.' : '')
+    const dica = (lista: string[]) => {
+      if (lista.length <= 3) return ''
+      const [a, b, c] = sugestoesDeHorario(lista).map(horaFalada)
+      return ` Ofereça só estes 3 horários (os primeiros livres, com cerca de 1 hora de diferença): ${a}, ${b} e ${c}. Diga que há outros horários se a pessoa quiser.`
+    }
     /** O que existe nos outros períodos, para o modelo sugerir quando o escolhido está cheio. */
     const outros = (hhmms: string[]) => {
       const partes = PERIODOS.filter((p) => p !== periodo)

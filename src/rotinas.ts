@@ -1,4 +1,4 @@
-import { diaDaSemana, hojeISO, limitesDoDia, rotulo, somarDias } from './agenda.js'
+import { diaDaSemana, hojeISO, horaLocalDe, limitesDoDia, rotulo, somarDias } from './agenda.js'
 import type { ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
 import { normalizarNumero, numeroNaLista } from './config.js'
@@ -36,10 +36,16 @@ export function definirRotina(store: Store, nome: NomeRotina, ligada: boolean): 
 }
 
 export const HORA_RESUMO = 8
+/** O lembrete sai cerca de 4 horas antes da avaliação, no mesmo dia... */
+export const LEMBRETE_ANTECEDENCIA_MS = 4 * 3_600_000
+/** ...mas nunca depois de faltar menos de 1 hora, e nunca antes das 7h. */
+export const LEMBRETE_FALTANDO_MINIMO_MS = 3_600_000
+export const HORA_LEMBRETE_MESMO_DIA_DE = 7
+/** Avaliação cedo demais para lembrar no mesmo dia (4 h antes cairia antes das 7h): lembra na véspera, entre 17h e 20h. */
 export const HORA_LEMBRETE_DE = 17
 export const HORA_LEMBRETE_ATE = 20
 
-export const LEMBRETE_PADRAO = 'Oi, {nome}! Passando para lembrar da sua avaliação aqui na GarageFit: {dia}, às {hora} 😊\nQualquer imprevisto, é só me avisar por aqui. Te esperamos!'
+export const LEMBRETE_PADRAO = 'Oi, {nome}! Passando para lembrar da sua avaliação aqui na GarageFit {quando}, às {hora} 😊\nQualquer imprevisto, é só me avisar por aqui. Te esperamos!'
 
 export interface RotinasDeps {
   store: Store
@@ -146,7 +152,7 @@ export class Rotinas {
     return true
   }
 
-  private textoDoLembrete(nome: string, inicio: number): string {
+  private textoDoLembrete(nome: string, inicio: number, quando: 'hoje' | 'amanhã'): string {
     let modelo = LEMBRETE_PADRAO
     try {
       modelo = carregarMensagens(this.d.cfg.mensagensPath)['lembrete-avaliacao']?.trim() || modelo
@@ -154,11 +160,32 @@ export class Rotinas {
       // mensagens.md ilegível: usa o texto padrão
     }
     const r = rotulo(inicio, this.fuso)
-    return renderizar(modelo, { nome, dia: r.dia, hora: r.hora }).replace(/,\s*!/g, '!')
+    return renderizar(modelo, { nome, dia: r.dia, hora: r.hora, quando }).replace(/,\s*!/g, '!')
   }
 
   /**
-   * Lembrete da avaliação de amanhã, das 17h às 20h, só para quem já conversou com o bot. Desligado por padrão.
+   * Esta avaliação deve ser lembrada AGORA? Devolve "hoje" (lembrete de uns 4 h antes, no mesmo dia), "amanhã" (avaliação cedo
+   * demais para isso: lembra na véspera, das 17h às 20h) ou undefined (não é a hora).
+   */
+  private quandoLembrar(inicio: number, hoje: string, amanha: string): 'hoje' | 'amanhã' | undefined {
+    const { servico } = this.d
+    const agora = this.agoraMs()
+    const hora = this.horaLocal()
+    const dataDoEvento = hojeISO(new Date(inicio), this.fuso)
+    const ideal = inicio - LEMBRETE_ANTECEDENCIA_MS
+    const cedoDemais = horaLocalDe(servico.regras, ideal) < HORA_LEMBRETE_MESMO_DIA_DE
+    if (dataDoEvento === hoje) {
+      if (cedoDemais) return undefined // essa já foi lembrada na véspera
+      return agora >= ideal && agora <= inicio - LEMBRETE_FALTANDO_MINIMO_MS && hora >= HORA_LEMBRETE_MESMO_DIA_DE && hora < HORA_LEMBRETE_ATE ? 'hoje' : undefined
+    }
+    if (dataDoEvento === amanha && cedoDemais) {
+      return hora >= HORA_LEMBRETE_DE && hora < HORA_LEMBRETE_ATE ? 'amanhã' : undefined
+    }
+    return undefined
+  }
+
+  /**
+   * Lembrete da avaliação, uns 4 horas antes no mesmo dia (para as da tarde) ou na véspera à noite (para as da manhã cedo), das 17h às 20h, só para quem já conversou com o bot. Desligado por padrão.
    * Sai no máximo UM por chamada (a próxima só depois do intervalo de 1 a 5 minutos) e dentro do teto diário
    * compartilhado com as outras mensagens automáticas. Devolve quantos saíram (0 ou 1).
    */
@@ -166,8 +193,6 @@ export class Rotinas {
     const { store, cfg, servico, wa } = this.d
     if (!rotinaLigada(store, 'lembrete')) return 0
     if (cfg.modoWhatsapp !== 'qr') return 0 // na API oficial, mensagem fora das 24h exige modelo aprovado pela Meta
-    const hora = this.horaLocal()
-    if (hora < HORA_LEMBRETE_DE || hora >= HORA_LEMBRETE_ATE) return 0
     const g = servico.googleAgenda
     if (!g) return 0
     if (this.d.conectado && !this.d.conectado()) return 0
@@ -175,10 +200,14 @@ export class Rotinas {
     if (!podeEnviarAutomatica(store, servico).ok) return 0
 
     const hoje = hojeISO(servico.agora(), this.fuso)
-    const { de, ate } = limitesDoDia(servico.regras, somarDias(hoje, 1))
+    const amanha = somarDias(hoje, 1)
+    const de = limitesDoDia(servico.regras, hoje).de
+    const ate = limitesDoDia(servico.regras, amanha).ate
     const doDia = (await g.api.listarEventos(g.agendaId, de, ate)).filter((e) => e.ocupa && !e.diaInteiro && e.inicio !== undefined && ehAvaliacao(e.titulo)).sort((a, b) => a.inicio! - b.inicio!)
 
     for (const e of doDia) {
+      const quando = this.quandoLembrar(e.inicio!, hoje, amanha)
+      if (!quando) continue // ainda não é a hora (ou já passou) para esta avaliação
       if (store.lembreteRegistrado(e.id)) continue
       const numero = whatsappDoEvento(e)
       if (!numero) {
@@ -204,7 +233,7 @@ export class Rotinas {
       }
 
       const nome = nomeDoCliente(e.titulo).split(' ')[0] ?? ''
-      const texto = this.textoDoLembrete(nome, e.inicio!)
+      const texto = this.textoDoLembrete(nome, e.inicio!, quando)
       store.registrarLembrete(e.id, 'enviando', this.agoraMs()) // no máximo uma vez, mesmo que o envio falhe
       try {
         await wa.enviarTexto(chat, texto)

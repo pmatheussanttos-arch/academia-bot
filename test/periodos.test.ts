@@ -53,17 +53,17 @@ describe('consultar horários por período', () => {
     assert.doesNotMatch(tarde, /10:30|18:00/)
     const noite = await servico.consultar('avaliacao_fisica', SEGUNDA, 'noite')
     assert.match(noite, /19\/10 à noite: 18:00, 18:30, 19:00, 19:30\./)
-    assert.doesNotMatch(noite, /Ofereça só/, 'poucos horários: sem pedir para resumir')
+    assert.match(noite, /Ofereça só estes 3 horários[^:]*: 18h, 18h30 e 19h\./, '4 horários: sugere 3, espaçados quando dá')
   })
 
-  it('horário ocupado some da lista do período; lista longa pede para oferecer só 3 ou 4', async () => {
+  it('horário ocupado some da lista do período; lista longa pede para oferecer só 3', async () => {
     const google = new GoogleFalso()
     google.ocupar(SEGUNDA, '15:00')
     const { servico } = criarServico({ google })
     const tarde = await servico.consultar('avaliacao_fisica', SEGUNDA, 'tarde')
     assert.doesNotMatch(tarde, /15:00/)
     assert.match(tarde, /14:30, 15:30/)
-    assert.match(tarde, /Ofereça só 3 ou 4 desses, bem espalhados/)
+    assert.match(tarde, /Ofereça só estes 3 horários \(os primeiros livres, com cerca de 1 hora de diferença\): 14h, 15h30 e 16h30\. Diga que há outros horários/)
   })
 
   it('período cheio: diz isso e mostra o que há nos outros períodos', async () => {
@@ -82,7 +82,7 @@ describe('consultar horários por período', () => {
     const { servico } = criarServico({ google })
     const todos = await servico.consultar('avaliacao_fisica', SEGUNDA)
     assert.equal(todos, await servico.consultar('avaliacao_fisica', SEGUNDA, 'qualquer'))
-    assert.match(todos, /Horários livres para avaliação em Segunda-feira, 19\/10: 07:00.*19:30\. Ofereça só 3 ou 4/)
+    assert.match(todos, /Horários livres para avaliação em Segunda-feira, 19\/10: 07:00.*19:30\. Ofereça só estes 3 horários[^:]*: 7h, 8h e 9h\./)
     for (const h of [...HORAS_MANHA, ...HORAS_TARDE, ...HORAS_NOITE]) google.ocupar(SEGUNDA, h)
     assert.match(await servico.consultar('avaliacao_fisica', SEGUNDA, 'tarde'), /Não há horários livres para avaliação em Segunda-feira, 19\/10\. Sugira outro dia/)
   })
@@ -138,5 +138,39 @@ describe('ferramenta consultar_horarios com período', () => {
     assert.match(instrucoes, /Não liste horários antes disso/)
     assert.match(instrucoes, /não pergunte de novo/)
     assert.match(instrucoes, /consultar_horarios \(tipo, data AAAA-MM-DD e periodo\)/)
+  })
+})
+
+describe('os 3 horários oferecidos (primeiros livres, espaçados)', () => {
+  it('manhã inteira livre: 7h, 8h e 9h', async () => {
+    const { sugestoesDeHorario, horaFalada } = await import('../src/agendamento.js')
+    assert.deepEqual(sugestoesDeHorario(['07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30']), ['07:00', '08:00', '09:00'])
+    assert.equal(horaFalada('07:00'), '7h')
+    assert.equal(horaFalada('08:30'), '8h30')
+    assert.equal(horaFalada('10:00'), '10h')
+    assert.equal(horaFalada('19:30'), '19h30')
+  })
+
+  it('com horários ocupados continua pegando os primeiros livres, sempre com ~1h entre eles', async () => {
+    const { sugestoesDeHorario } = await import('../src/agendamento.js')
+    assert.deepEqual(sugestoesDeHorario(['07:30', '08:00', '08:30', '09:00', '10:30']), ['07:30', '08:30', '10:30'])
+    assert.deepEqual(sugestoesDeHorario(['07:00', '08:30', '09:00', '10:30']), ['07:00', '08:30', '10:30'])
+  })
+
+  it('poucos livres: oferece o que tem; sem espaço de 1h, completa com os primeiros', async () => {
+    const { sugestoesDeHorario } = await import('../src/agendamento.js')
+    assert.deepEqual(sugestoesDeHorario(['10:00']), ['10:00'])
+    assert.deepEqual(sugestoesDeHorario(['10:00', '10:30', '11:00']), ['10:00', '10:30', '11:00'])
+    assert.deepEqual(sugestoesDeHorario(['18:00', '18:30', '19:00', '19:30']), ['18:00', '18:30', '19:00'])
+  })
+
+  it('a ferramenta manda oferecer só os 3 e as instruções também', async () => {
+    const google = new GoogleFalso()
+    const { servico } = criarServico({ google })
+    const manha = await servico.consultar('avaliacao_fisica', SEGUNDA, 'manha')
+    assert.match(manha, /Ofereça só estes 3 horários[^:]*: 7h, 8h e 9h\. Diga que há outros horários se a pessoa quiser/)
+    assert.match(manha, /07:00, 07:30, 08:00/, 'a lista completa continua disponível se a pessoa pedir outro horário')
+    const { readFileSync } = await import('node:fs')
+    assert.match(readFileSync('./instrucoes.md', 'utf8'), /ofereça \*\*só os 3 horários que a ferramenta sugerir\*\*/)
   })
 })
