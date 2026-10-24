@@ -29,15 +29,45 @@ Mas quem realmente quer resultado escolhe nossos planos VIP, que saem muito mais
 Qual desses encaixa melhor no seu objetivo? 💪🏼
 ```
 
-### Pontos para decidir ANTES de aplicar (levantados por Claude, sem resposta ainda)
+### Decisões do Matheus (24/10/2026)
 
-1. **Conflito com as regras atuais.** Hoje o `instrucoes.md` manda: uma etapa por mensagem, no máximo 3 frases, **não dar preço antes de saber a frequência**, e **não despejar vários planos de uma vez**. Este texto mostra os dois planos básicos e os três VIP juntos, então aqueles trechos precisam ser reescritos (e os testes que conferem essas frases também).
-2. **A pergunta "frequência" continua antes?** O texto lista 3x e todos os dias juntos, então a pergunta "3x por semana ou todos os dias?" deixaria de ser necessária. Confirmar se ela sai do fluxo.
-3. **Avaliação gratuita:** hoje o `instrucoes.md` diz que a avaliação é grátis em **todos** os planos VIP (trimestral, semestral e anual). Neste texto o Semestral ficou de fora ("Trimestral e Anual"). Foi proposital?
-4. **Convidado grátis (15 dias no Trimestral | 1 mês no Anual):** é uma condição que **não existe** hoje no `instrucoes.md`. Se entrar, o bot passa a prometer isso aos clientes. Confirmar que é verdade e se vale também para o Semestral. Corrigir "1 meses" para "1 mês"?
-5. **"R$ 89,90/mês" nos VIP:** hoje as instruções descrevem os VIP como **parcelas no cartão** (3x de 89,90 = 269,70; 6x de 79,90 = 479,40; 12x de 69,90 = 838,80) e também **à vista pelo total**. O texto novo diz "/mês", que pode ser lido como mensalidade recorrente. Manter assim ou escrever "3x de R$ 89,90", "6x de R$ 79,90", "12x de R$ 69,90"?
-6. **Pergunta final:** substitui a pergunta do objetivo ("Qual é o seu objetivo hoje?") por "Qual desses encaixa melhor no seu objetivo?". Ajustar a regra de não repetir pergunta.
-7. **Tamanho:** é uma mensagem longa. No WhatsApp ela pode sair numa mensagem só (como está) ou dividida em duas ([[nova mensagem]] antes de "Mas quem realmente quer resultado"). Escolher.
+- **Texto igual ao enviado**, sem reescrever nada.
+- **Não mandar mensagem grande:** dividir em mensagens menores (proposta abaixo; o texto continua idêntico, só separado).
+- **A pergunta "3x por semana ou todos os dias?" sai do fluxo** (o texto já traz os dois). As regras "não dar preço antes de saber a frequência" e "não despejar vários planos" precisam ser reescritas ao aplicar, junto com os testes que conferem essas frases.
+- **Avaliação gratuita vale nos 3 planos VIP** (Trimestral, Semestral e Anual). **Atenção:** o texto enviado diz "(Trimestral e Anual)". ABERTO: ver a pergunta abaixo.
+- **Convidado grátis (15 dias no Trimestral | 1 meses no Anual):** manter como está. (O Semestral não tem convidado.)
+- **VIP continuam sendo parcelas no cartão** (3x, 6x, 12x) ou o total à vista: manter essa explicação nas instruções para quando o cliente perguntar como paga. O "/mês" do texto fica como o Matheus escreveu.
+- **Só gravar por enquanto:** nada foi aplicado no `instrucoes.md`.
+
+### Proposta de divisão em mensagens menores (ainda não aplicada)
+
+Mensagem 1:
+```
+Temos opções que se encaixam no seu momento:
+
+💪 3x por semana — R$ 89,90
+💪 Acesso todos os dias — R$ 99,90
+```
+
+Mensagem 2:
+```
+Mas quem realmente quer resultado escolhe nossos planos VIP, que saem muito mais em conta:
+
+🔥 Trimestral VIP — R$ 89,90/mês
+🔥 Semestral VIP — R$ 79,90/mês
+🔥 Anual VIP — R$ 69,90/mês
+```
+
+Mensagem 3:
+```
+✅ Todos com acesso livre
+✅ Avaliação gratuita (Trimestral e Anual)
+✅ Convidado grátis (15 dias no Trimestral | 1 meses no Anual)
+
+Qual desses encaixa melhor no seu objetivo? 💪🏼
+```
+
+Ainda a decidir: ficar em 3 mensagens, ou 2 (juntando a 2 e a 3)?
 
 ---
 
