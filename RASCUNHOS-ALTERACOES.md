@@ -85,8 +85,13 @@ Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente a
 
 **Taxa vista no simulador do Mercado Pago (24/10/2026, print do Matheus):** cobrar R$ 100,00 no cartão, recebendo em 7 dias, custa **até R$ 4,98** (≈ 5%), mais a taxa de parcelamento se parcelar. Para o 3x por semana (R$ 89,90) são ≈ R$ 4,50; para o Livre (R$ 99,90) ≈ R$ 5,00. O Matheus achou caro. Alternativa levantada por Claude: **Pix gerado pelo Mercado Pago** (valor fixo, aviso automático de pagamento aprovado, taxa normalmente bem menor que a do cartão; conferir no simulador escolhendo Pix) e cartão continua só na recepção. Comparar também com a taxa da maquininha da recepção e com os outros prazos de recebimento do simulador (14 e 30 dias, se existirem na conta dele).
 
+**Nova direção (24/10/2026): InfinitePay em vez de Mercado Pago.** Taxa do cartão informada pelo Matheus: **4,2% sem taxa extra, recebendo em 1 dia**; Pix 0%. Mas o **Pix continua na chave CNPJ do Bradesco** (o Matheus quer manter a conta para movimentar), então o Pix do bot **não muda**. Só o cartão passa a ter link de pagamento da InfinitePay.
+- Versão simples (sem integração, sem chave secreta): o Matheus cria no app da InfinitePay um link fixo por valor (3x por semana R$ 89,90; Acesso livre R$ 99,90; e, se escolher a opção B, os de R$ 124,90 e R$ 134,90) e cola os endereços aqui. O bot manda o link do plano escolhido, pede o comprovante e chama a equipe para conferir (o bot continua sem confirmar pagamento sozinho).
+- Confirmação automática de pagamento exigiria a integração/API da InfinitePay: verificar a documentação antes de prometer.
+- Só os planos básicos (3x e Livre); VIP segue na recepção.
+
 **ABERTO:**
-0. Seguir com cartão online (taxa ≈ 5%), trocar por Pix do Mercado Pago, ou deixar tudo como está?
+0. (superado pela InfinitePay) Seguir com cartão online (taxa ≈ 5%), trocar por Pix do Mercado Pago, ou deixar tudo como está?
 1. O link cobra o quê? (a) só a 1ª mensalidade (R$ 89,90 ou R$ 99,90); (b) 1ª mensalidade + avaliação de R$ 35 (R$ 124,90 ou R$ 134,90), que é o que o cliente novo paga hoje "no ato"; (c) outro.
 2. As mensalidades seguintes dos planos básicos: como são cobradas hoje (recepção, plataforma)? O link pagaria só a primeira vez; cobrança automática todo mês seria outra etapa (Assinaturas do Mercado Pago), mais complexa.
 3. Nome da plataforma da academia (para saber se dá para integrar a matrícula).
