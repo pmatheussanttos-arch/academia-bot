@@ -34,7 +34,7 @@ Qual desses encaixa melhor no seu objetivo? 💪🏼
 - **Texto igual ao enviado**, sem reescrever nada.
 - **Não mandar mensagem grande:** dividir em mensagens menores (proposta abaixo; o texto continua idêntico, só separado).
 - **A pergunta "3x por semana ou todos os dias?" sai do fluxo** (o texto já traz os dois). As regras "não dar preço antes de saber a frequência" e "não despejar vários planos" precisam ser reescritas ao aplicar, junto com os testes que conferem essas frases.
-- **Avaliação gratuita vale nos 3 planos VIP** (Trimestral, Semestral e Anual). **Atenção:** o texto enviado diz "(Trimestral e Anual)". ABERTO: ver a pergunta abaixo.
+- **Avaliação gratuita vale nos 3 planos VIP** (confirmado pelo Matheus). No texto a linha passa a ser: `✅ Avaliação gratuita (nos 3 planos VIP)` (o original dizia "Trimestral e Anual"; conferir a redação final ao aplicar).
 - **Convidado grátis (15 dias no Trimestral | 1 meses no Anual):** manter como está. (O Semestral não tem convidado.)
 - **VIP continuam sendo parcelas no cartão** (3x, 6x, 12x) ou o total à vista: manter essa explicação nas instruções para quando o cliente perguntar como paga. O "/mês" do texto fica como o Matheus escreveu.
 - **Só gravar por enquanto:** nada foi aplicado no `instrucoes.md`.
@@ -61,13 +61,19 @@ Mas quem realmente quer resultado escolhe nossos planos VIP, que saem muito mais
 Mensagem 3:
 ```
 ✅ Todos com acesso livre
-✅ Avaliação gratuita (Trimestral e Anual)
+✅ Avaliação gratuita (nos 3 planos VIP)
 ✅ Convidado grátis (15 dias no Trimestral | 1 meses no Anual)
 
 Qual desses encaixa melhor no seu objetivo? 💪🏼
 ```
 
-Ainda a decidir: ficar em 3 mensagens, ou 2 (juntando a 2 e a 3)?
+**Decidido: 3 mensagens** (cada uma cabe na tela do celular sem rolar).
+
+---
+
+## 2. Pagamento por cartão pelo bot (ideia, em discussão — nada decidido)
+
+Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente até pagar. Ver a conversa de 24/10/2026 para os pontos levantados (gateway, plataforma da academia, direito de arrependimento, taxas, fases).
 
 ---
 
