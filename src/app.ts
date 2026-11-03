@@ -5,6 +5,7 @@ import type { EstadoWhatsapp } from './baileys.js'
 import { tratarMensagem, type AtendimentoDeps } from './atendimento.js'
 import type { Config, ConfigWhatsapp } from './config.js'
 import type { FilaPorChave } from './fila.js'
+import { campanhaDoDia, carregarCampanha } from './campanha.js'
 import { Metricas } from './metricas.js'
 import { abaValida, paginaPainel } from './painel-dono.js'
 import { nomeInformado } from './acompanhamento.js'
@@ -116,6 +117,8 @@ export function criarApp(deps: AppDeps): Hono {
       avisos: { whatsapp: cfg.numerosAvisos.length, telegram: Boolean(cfg.telegram) },
       pausado: store.pausa() !== undefined,
       agenda_professores: acesso.estado().ligada,
+      /** Fase da campanha com data hoje (ativa, semana_final, ultimo_dia, encerrada) ou "nenhuma": mostra se o campanha.md chegou ao servidor. */
+      campanha: campanhaDoDia(carregarCampanha(cfg.campanhaPath), (deps.agora ?? (() => new Date()))(), deps.agenda.fuso)?.fase ?? 'nenhuma',
     })
   })
 

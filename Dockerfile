@@ -7,7 +7,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY tsconfig.json instrucoes.md agenda.json mensagens.md ./
+COPY tsconfig.json instrucoes.md agenda.json mensagens.md campanha.md ./
 COPY src ./src
 
 # O banco de dados fica em /data. Na hospedagem, ligue um disco/volume permanente a esta pasta.

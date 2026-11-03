@@ -5,6 +5,7 @@ import { criarServicoAgenda } from './agendamento.js'
 import { criarApp } from './app.js'
 import { Metricas } from './metricas.js'
 import { Acompanhamento } from './acompanhamento.js'
+import { campanhaDoDia, carregarCampanha } from './campanha.js'
 import { Rotinas } from './rotinas.js'
 import { DriverBaileys } from './baileys.js'
 import { tratarMensagem } from './atendimento.js'
@@ -86,6 +87,16 @@ if (!modoQr && process.env.NUMEROS_AVISOS?.trim()) {
 }
 if (cfg.numerosPermitidos.length > 0) {
   console.log(`⚠️  Modo de teste: o bot só responde a ${cfg.numerosPermitidos.length} número(s) (NUMEROS_PERMITIDOS).`)
+}
+
+{
+  const c = carregarCampanha(cfg.campanhaPath)
+  const hoje = campanhaDoDia(c, new Date(), 'America/Sao_Paulo')
+  console.log(
+    c
+      ? `📣 Campanha (${cfg.campanhaPath}): ${hoje ? `HOJE em fase "${hoje.fase}"` : 'fora das datas, não entra no prompt hoje'} (${c.inicio} a ${c.fim}).`
+      : `📣 Campanha: nenhuma (arquivo ${cfg.campanhaPath} ausente ou inválido).`,
+  )
 }
 
 const store = new Store(join(cfg.dataDir, 'bot.db'))
