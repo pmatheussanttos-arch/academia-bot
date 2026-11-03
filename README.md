@@ -86,6 +86,10 @@ Para os clientes saberem do número novo, divulgue-o (Instagram, site, cartaz) c
 
 A página de conexão (`/conectar?token=SEU_ADMIN_TOKEN`, o mesmo atalho de sempre) agora é um painel com seis abas: **Hoje**, **Avaliações**, **Vendas**, **Conversas**, **Bot** e **Testar**. Mostra o que está marcado hoje, quantas avaliações foram feitas e quem marcou (assistente, recepção, professores ou direto na agenda do Google), o funil conversas → avaliações → matrículas, as matrículas que faltam lançar na plataforma, quem veio e quem faltou, quem está esperando a equipe, o que o bot não soube responder, o gasto estimado com a IA e a saúde da conexão. Também liga e desliga o resumo semanal e o lembrete ao cliente. Guia completo no **PAINEL.md**.
 
+## Campanhas com data (Black GarageFit)
+
+O texto da campanha fica no `campanha.md` e entra no bot sozinho entre as datas do arquivo (e sai sozinho depois). Veja o **CAMPANHA.md**.
+
 ## Agenda para os professores (página no navegador)
 
 Além do WhatsApp, a equipe pode ver a semana e **marcar, desmarcar e remarcar avaliações** numa página do próprio bot, na mesma agenda do Google. Sem login: o acesso é um endereço secreto que você gera com um toque na página de conexão e compartilha no grupo da equipe. Passo a passo no **AGENDA-PROFESSORES.md**.
@@ -120,6 +124,7 @@ O bot publica em `/status/whatsapp` o estado da conexão: responde normalmente q
 | `src/status.ts` | Página de status para o monitor externo avisar quedas |
 | `src/matricula.ts` | Matrícula pela conversa: conferência dos dados e aviso à equipe |
 | `src/painel-dono.ts`, `src/metricas.ts` | Painel em abas (/conectar) e os números dele (agenda, funil, custo, saúde) |
+| `src/campanha.ts`, `campanha.md` | Campanha com data (Black): entra e sai do prompt sozinha |
 | `src/rotinas.ts`, `src/acompanhamento.ts`, `src/automaticas.ts` | Resumo semanal, lembretes, alerta de gasto, aviso de cliente esperando e retomada de conversas (com os limites anti-bloqueio) |
 | `src/sala-de-teste.ts`, `src/pagina-teste.ts` | Página /teste: conversa com o bot no navegador, isolada do mundo real |
 | `agenda.json` | **Você edita**: dias e horários das visitas, períodos (manhã/tarde/noite), antecedência, feriados |

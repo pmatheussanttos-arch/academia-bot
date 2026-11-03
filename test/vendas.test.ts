@@ -99,9 +99,8 @@ describe('como os preços são explicados', () => {
     assert.match(i, /não solte a chave no meio da conversa/)
   })
 
-  it('o que NÃO podia mudar continua igual: GoNutri, Desconto Fácil, avaliação e parcerias', () => {
-    assert.match(i, /3x por semana \+ GoNutri: R\$ 110,00\/mês/)
-    assert.match(i, /Acesso livre \+ GoNutri: R\$ 129,90\/mês/)
+  it('GoNutri e "funcional" saíram das instruções; Desconto Fácil, avaliação e parcerias continuam', () => {
+    assert.doesNotMatch(i, /GoNutri|funcional/i)
     assert.match(i, /3x por semana: de R\$ 89,90 por R\$ 80,00/)
     assert.match(i, /Acesso livre: de R\$ 99,90 por R\$ 89,90/)
     assert.match(i, /\*\*Avaliação física:\*\* R\$ 35,00 \(grátis nos planos VIP\)/)

@@ -4,6 +4,7 @@ import type { Config } from './config.js'
 import { avisoDeMatricula, validarMatricula } from './matricula.js'
 import { carregarMensagens, renderizar } from './mensagens.js'
 import { CHAVES_PLANOS, PLANOS_PAGAMENTO, textoPagamentoCartao, trechoCartaoDaMatricula, type ChavePlano } from './pagamento.js'
+import { campanhaDoDia, carregarCampanha } from './campanha.js'
 import { carregarInstrucoes, limparNome, montarSistema, situacaoDaConversa } from './prompt.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Notificador } from './notify.js'
@@ -297,6 +298,14 @@ async function executarFerramenta(
   }
 
   if (bloco.name === 'enviar_valores') {
+    const agora = (deps.agora ?? (() => new Date()))()
+    const campanha = campanhaDoDia(carregarCampanha(deps.cfg.campanhaPath), agora, deps.agenda.fuso)
+    if (campanha && campanha.fase !== 'encerrada') {
+      return resultado(
+        bloco,
+        'Estamos em campanha: NÃO envie a lista padrão de valores. Siga a seção "CAMPANHA EM ANDAMENTO": mensagem 0 ou 1 se ainda não souber o objetivo da pessoa, e a mensagem 2 (Semestral e Anual VIP) depois que ela disser o objetivo.',
+      )
+    }
     return resultado(
       bloco,
       `Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar nenhuma palavra, sem acrescentar texto antes ou depois, e mantendo as linhas [[nova mensagem]] exatamente onde estão (elas dividem a resposta em 3 mensagens curtas). Já termina com a pergunta; não faça outra.\n---\n${textoValores(deps.cfg)}\n---`,
@@ -397,7 +406,8 @@ export async function responder(deps: AgenteDeps, chat: string, nome: string | u
   const agora = (deps.agora ?? (() => new Date()))()
   const historico = store.historico(chat, cfg.historicoMax)
   const situacao = situacaoDaConversa(store.historico(chat, 200).filter((m) => m.papel === 'assistant').map((m) => m.conteudo))
-  const system = montarSistema(carregarInstrucoes(cfg.instrucoesPath), agora, nome, deps.agenda.fuso, situacao)
+  const campanha = campanhaDoDia(carregarCampanha(cfg.campanhaPath), agora, deps.agenda.fuso)
+  const system = montarSistema(carregarInstrucoes(cfg.instrucoesPath), agora, nome, deps.agenda.fuso, situacao, campanha)
   const mensagens = historicoParaMensagens(historico)
 
   let ultimoTexto = ''

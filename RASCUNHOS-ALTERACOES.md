@@ -110,4 +110,10 @@ Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente a
 
 ---
 
+## 4. Black GarageFit (03/11/2026) — APLICADA
+
+Texto no `campanha.md` (entra e sai do prompt sozinho: 02/11 a 30/11; encerramento até 31/12). GoNutri e "funcional" removidos das instruções. O bot envia o link de pagamento ele mesmo (Semestral e Anual). Avaliação física pode ser marcada com até 90 dias. Guia: `CAMPANHA.md`.
+
+---
+
 (próximas alterações entram aqui embaixo)

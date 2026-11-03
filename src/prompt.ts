@@ -93,12 +93,14 @@ export function montarSistema(
   nomeContato: string | undefined,
   fuso = 'America/Sao_Paulo',
   situacao: string[] = [],
+  campanha?: { texto: string; aviso: string },
 ): Anthropic.TextBlockParam[] {
   void nomeContato // o nome do perfil fica de fora de propósito: o assistente tem que perguntar (veja as regras fixas)
   const dinamico = [
     `Data e hora agora (Brasília): ${formatarAgora(agora)}.`,
     `Data de hoje no formato das ferramentas (AAAA-MM-DD): ${hojeISO(agora, fuso)}.`,
     'Você não sabe o nome desta pessoa: só considere o nome que ela escrever nesta conversa.',
+    ...(campanha ? [campanha.aviso] : []),
     ...situacao,
   ].join('\n')
 
@@ -108,6 +110,8 @@ export function montarSistema(
       text: `${REGRAS_FIXAS}\n\n# Instruções da academia\n\n${instrucoes}`,
       cache_control: { type: 'ephemeral' },
     },
+    // A campanha do dia (igual durante todo o período, por isso também vai para o cache) vale mais do que as instruções antigas.
+    ...(campanha ? [{ type: 'text' as const, text: `# CAMPANHA EM ANDAMENTO (vale mais do que qualquer regra antiga)\n\n${campanha.texto}`, cache_control: { type: 'ephemeral' as const } }] : []),
     { type: 'text', text: dinamico },
   ]
 }

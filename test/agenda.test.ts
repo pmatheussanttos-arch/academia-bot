@@ -89,7 +89,7 @@ describe('gradeDoDia', () => {
     assert.match(erro('2026-10-15'), /já passou/)
     assert.match(erro('2026-10-17'), /aos sábados/)
     assert.match(erro('2026-10-18'), /segunda-feira, terça-feira/)
-    assert.match(erro('2026-11-30'), /até 14 dias/)
+    assert.match(erro('2027-03-01'), /até 90 dias/)
     assert.match(erro('2026-13-45'), /Data inválida/)
     assert.match(erro('amanhã'), /Data inválida/)
     assert.match(erro(SEGUNDA, { ...agenda, diasFechados: [SEGUNDA] }), /Não há visitas/)

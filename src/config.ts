@@ -27,6 +27,8 @@ export interface Config {
   agendaPath: string
   /** Textos que o bot envia ao cliente quando agenda uma visita. */
   mensagensPath: string
+  /** Texto da campanha com data (campanha.md). Se não existir, o bot funciona sem campanha. */
+  campanhaPath: string
   /** Google Agenda das avaliações. Sem isto, o bot trabalha em modo manual (a equipe confirma). */
   google?: { agendaId: string; clientEmail: string; privateKey: string }
   /** Se o bot agenda avaliações sozinho no Google Agenda (precisa de `google`). */
@@ -122,6 +124,7 @@ export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
     instrucoesPath: env.INSTRUCOES_PATH?.trim() || './instrucoes.md',
     agendaPath: env.AGENDA_PATH?.trim() || './agenda.json',
     mensagensPath: env.MENSAGENS_PATH?.trim() || './mensagens.md',
+    campanhaPath: env.CAMPANHA_PATH?.trim() || './campanha.md',
     google,
     agendamentoAutomatico: google !== undefined && env.AGENDAMENTO_AUTOMATICO !== '0',
     numeroRecepcao,

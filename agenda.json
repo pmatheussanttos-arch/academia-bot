@@ -3,7 +3,7 @@
   "duracaoMin": 30,
   "capacidade": 1,
   "antecedenciaMin": 60,
-  "diasMaximoFuturo": 14,
+  "diasMaximoFuturo": 90,
   "janelas": {
     "seg": [["07:00", "10:30"], ["14:00", "19:30"]],
     "ter": [["07:00", "10:30"], ["14:00", "19:30"]],

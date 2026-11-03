@@ -26,6 +26,8 @@ export const ESPERA_ALERTA_MIN = 15
 /** O WhatsApp está conectado e um cliente ficou tanto tempo sem resposta: o bot pode estar mudo. */
 export const MUDO_APOS_MIN = 10
 const CACHE_AGENDA_MS = 60_000
+/** A "agenda cheia?" olha só as próximas 2 semanas, mesmo que o bot aceite marcar avaliação mais longe. */
+const DIAS_OCUPACAO = 14
 
 /** Preço por milhão de tokens, em dólar (entrada, saída). Tabela cacheada: confira em anthropic.com/pricing. */
 const PRECOS: Record<string, { entrada: number; saida: number }> = {
@@ -282,7 +284,8 @@ export class Metricas {
     const mesFim = proximoMes(hoje)
     const segunda = segundaDaSemana(hoje)
     const semanaFim = somarDias(segunda, 7)
-    const horizonteFim = somarDias(hoje, regras.diasMaximoFuturo + 1)
+    const diasOcupacao = Math.min(regras.diasMaximoFuturo, DIAS_OCUPACAO)
+    const horizonteFim = somarDias(hoje, diasOcupacao + 1)
 
     const ini = epochLocal(mesIni < segunda ? mesIni : segunda, '00:00', this.fuso)
     const fimDia = [mesFim, semanaFim, horizonteFim].sort().at(-1)!
@@ -333,7 +336,7 @@ export class Metricas {
     // --- ocupação da grade nos próximos dias (usa TODOS os eventos que ocupam horário, como o bot) ---
     let total = 0
     let ocupados = 0
-    for (let i = 0; i < regras.diasMaximoFuturo; i++) {
+    for (let i = 0; i < diasOcupacao; i++) {
       const dia = somarDias(hoje, i)
       if (regras.diasFechados.includes(dia) || servico.diaFechado(dia, eventos)) continue
       for (const hhmm of horariosDoDia(regras, dia)) {
@@ -396,7 +399,7 @@ export class Metricas {
       porOrigem,
       porDiaSemana,
       porHorario,
-      ocupacao: { dias: regras.diasMaximoFuturo, total, ocupados, livres: total - ocupados, percentual: total > 0 ? Math.round((ocupados / total) * 100) : 0 },
+      ocupacao: { dias: diasOcupacao, total, ocupados, livres: total - ocupados, percentual: total > 0 ? Math.round((ocupados / total) * 100) : 0 },
       funil: { conversas, avaliacoesPeloBot: store.contarEventos('avaliacao_bot', msMesIni, msMesFim), avaliacoes: doMes.length, matriculasPeloBot: matriculasMes, avaliacoesQueMatricularam: queMatricularam },
       comparecimento: {
         veio,
