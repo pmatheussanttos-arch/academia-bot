@@ -1,0 +1,36 @@
+# A cada mudança no GitHub (branch main): roda os testes e, se TODOS passarem, manda a Render atualizar o bot.
+# Sem o segredo RENDER_DEPLOY_HOOK o deploy automático fica desligado (os testes continuam rodando).
+# Como ligar: veja o passo a passo em DEPLOY-AUTOMATICO.md.
+name: Testes e deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # botão "Run workflow" na aba Actions, para forçar um deploy sem mudar nada
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    needs: testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Avisar a Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "RENDER_DEPLOY_HOOK não está configurado: deploy automático desligado."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Render avisada: o deploy começou."
