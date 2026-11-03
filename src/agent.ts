@@ -81,7 +81,7 @@ Mas quem realmente quer resultado escolhe nossos planos VIP, que saem muito mais
 [[nova mensagem]]
 ✅ Todos com acesso livre
 ✅ Avaliação gratuita (nos 3 planos VIP)
-✅ Convidado grátis (15 dias no Trimestral | 1 meses no Anual)
+✅ Convidado grátis (15 dias no Semestral | 1 mês no Anual)
 
 Qual desses encaixa melhor no seu objetivo? 💪🏼`
 

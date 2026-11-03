@@ -116,4 +116,8 @@ Texto no `campanha.md` (entra e sai do prompt sozinho: 02/11 a 30/11; encerramen
 
 ---
 
+**Correção (03/11/2026):** convidado grátis = **Trimestral: não tem; Semestral: 15 dias; Anual: 1 mês** (o texto antigo dizia "15 dias no Trimestral"). Aplicada em `mensagens.md`, `instrucoes.md` e no texto de reserva.
+
+---
+
 (próximas alterações entram aqui embaixo)

@@ -14,7 +14,7 @@ const CHAT = '5511977776666'
 const PARTES = [
   'Temos opções que se encaixam no seu momento:\n\n💪 3x por semana — R$ 89,90\n💪 Acesso todos os dias — R$ 99,90',
   'Mas quem realmente quer resultado escolhe nossos planos VIP, que saem muito mais em conta:\n\n🔥 Trimestral VIP — R$ 89,90/mês\n🔥 Semestral VIP — R$ 79,90/mês\n🔥 Anual VIP — R$ 69,90/mês',
-  '✅ Todos com acesso livre\n✅ Avaliação gratuita (nos 3 planos VIP)\n✅ Convidado grátis (15 dias no Trimestral | 1 meses no Anual)\n\nQual desses encaixa melhor no seu objetivo? 💪🏼',
+  '✅ Todos com acesso livre\n✅ Avaliação gratuita (nos 3 planos VIP)\n✅ Convidado grátis (15 dias no Semestral | 1 mês no Anual)\n\nQual desses encaixa melhor no seu objetivo? 💪🏼',
 ]
 
 describe('mensagem de valores (planos e preços)', () => {
@@ -28,7 +28,7 @@ describe('mensagem de valores (planos e preços)', () => {
 
   it('traz tudo o que precisa: planos básicos, os 3 VIP, benefícios e a pergunta final', () => {
     const v = textoValores(criarConfigDeTeste())
-    for (const trecho of ['3x por semana — R$ 89,90', 'Acesso todos os dias — R$ 99,90', 'Trimestral VIP — R$ 89,90/mês', 'Semestral VIP — R$ 79,90/mês', 'Anual VIP — R$ 69,90/mês', 'Todos com acesso livre', 'Avaliação gratuita (nos 3 planos VIP)', 'Convidado grátis (15 dias no Trimestral | 1 meses no Anual)']) {
+    for (const trecho of ['3x por semana — R$ 89,90', 'Acesso todos os dias — R$ 99,90', 'Trimestral VIP — R$ 89,90/mês', 'Semestral VIP — R$ 79,90/mês', 'Anual VIP — R$ 69,90/mês', 'Todos com acesso livre', 'Avaliação gratuita (nos 3 planos VIP)', 'Convidado grátis (15 dias no Semestral | 1 mês no Anual)']) {
       assert.ok(v.includes(trecho), trecho)
     }
     assert.ok(v.trimEnd().endsWith('Qual desses encaixa melhor no seu objetivo? 💪🏼'))
@@ -97,8 +97,11 @@ describe('ferramenta enviar_valores', () => {
 describe('regras nas instruções para a mensagem de valores', () => {
   const i = readFileSync('./instrucoes.md', 'utf8')
 
-  it('Trimestral VIP passa a ter convidado de 15 dias; Anual segue com 1 mês', () => {
-    assert.match(i, /Trimestral VIP: \*\*3x de R\$ 89,90\*\* no cartão, ou \*\*R\$ 269,70 à vista\*\* — inclui ainda 1 convidado por 15 dias/)
+  it('convidado grátis: NÃO tem no Trimestral; 15 dias no Semestral; 1 mês no Anual', () => {
+    assert.match(i, /Trimestral VIP: \*\*3x de R\$ 89,90\*\* no cartão, ou \*\*R\$ 269,70 à vista\*\*\n/, 'sem convidado')
+    assert.doesNotMatch(i, /Trimestral VIP:[^\n]*convidado/)
+    assert.match(i, /Semestral VIP: \*\*6x de R\$ 79,90\*\* no cartão, ou \*\*R\$ 479,40 à vista\*\* — inclui ainda 1 convidado por 15 dias/)
+    assert.doesNotMatch(textoValores(criarConfigDeTeste()), /15 dias no Trimestral|1 meses/)
     assert.match(i, /Anual VIP: \*\*12x de R\$ 69,90\*\* no cartão, ou \*\*R\$ 838,80 à vista\*\* — inclui ainda 1 convidado por 1 mês/)
   })
 

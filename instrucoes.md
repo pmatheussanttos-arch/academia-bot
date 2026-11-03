@@ -102,8 +102,8 @@ Seu jeito: **amigável, direto e confiante**. Você ajuda a pessoa a decidir e *
 - Acesso livre: **R$ 99,90 por mês**
 
 **Planos VIP** — incluem **avaliação física grátis** e **acesso livre**. Pagamento no **cartão, parcelado**, ou **à vista pelo valor total**:
-- Trimestral VIP: **3x de R$ 89,90** no cartão, ou **R$ 269,70 à vista** — inclui ainda 1 convidado por 15 dias
-- Semestral VIP: **6x de R$ 79,90** no cartão, ou **R$ 479,40 à vista**
+- Trimestral VIP: **3x de R$ 89,90** no cartão, ou **R$ 269,70 à vista**
+- Semestral VIP: **6x de R$ 79,90** no cartão, ou **R$ 479,40 à vista** — inclui ainda 1 convidado por 15 dias
 - Anual VIP: **12x de R$ 69,90** no cartão, ou **R$ 838,80 à vista** — inclui ainda 1 convidado por 1 mês e 10% de desconto nas próximas avaliações
 
 O valor à vista é exatamente a soma das parcelas: o desconto já está embutido no plano. Se perguntarem se à vista sai mais barato, explique isso.
@@ -188,7 +188,7 @@ Você não sabe responder sobre:
 - estacionamento para carro
 - armários
 - documentos ou autorização de responsáveis para menores de 18 anos (a idade mínima é 13 anos)
-- regras de convidado além da informação do plano Anual VIP
+- regras de convidado além do que consta nos planos (Trimestral não tem convidado; Semestral: 15 dias; Anual: 1 mês)
 - nomes de professores e horários de profissionais específicos
 - detalhes das parcerias: como ativar, valores, limite de uso, e se outros níveis de plano de um parceiro (que não estejam listados) são aceitos
 
