@@ -139,6 +139,9 @@ const deps = {
   whatsappCfg,
   whatsappEstado: driver ? () => driver.estado() : undefined,
   iniciadoEm: Date.now(),
+  // Junta mensagens seguidas do mesmo cliente numa resposta só (ver tratarMensagem).
+  esperaAgruparMs: 3000,
+  maisMensagensNaFila: (chat: string) => fila.naFila(chat) > 1,
 }
 
 const app = criarApp(deps)

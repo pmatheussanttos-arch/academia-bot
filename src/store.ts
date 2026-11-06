@@ -13,7 +13,7 @@ export interface MensagemSalva {
 /** Ação de um professor na página /agenda, guardada para o dono ver quem fez o quê e quando. */
 export interface AcaoAgenda {
   professor: string
-  acao: 'marcou' | 'desmarcou' | 'remarcou'
+  acao: 'marcou' | 'desmarcou' | 'remarcou' | 'renomeou'
   eventoId: string
   cliente: string
   whatsapp: string

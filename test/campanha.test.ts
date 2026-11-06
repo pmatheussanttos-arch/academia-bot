@@ -90,6 +90,18 @@ describe('a campanha entra e sai sozinha pelas datas (fuso de Brasília)', () =>
     assert.equal(fase('2027-01-01T00:00'), undefined, 'depois disso o arquivo é ignorado')
   })
 
+  it('quem não veio pela Black: a primeira resposta PERGUNTA se quer conhecer a promoção; e o bot segue o contexto', () => {
+    const t = real.texto
+    assert.match(t, /=== QUEM NÃO VEIO PELA BLACK/)
+    assert.match(t, /Não presuma que ela quer a Black: PERGUNTE primeiro/)
+    assert.match(t, /\nA\) Primeira resposta para quem NÃO veio pela Black[^\n]*\nOlá! Eu sou o GFIT, atendente virtual aqui da GarageFit 😊 Estamos com a Black Friday da GarageFit, valendo até 30\/11 🖤 Quer conhecer a promoção\?/)
+    assert.match(t, /Se a pessoa não quiser a promoção ou pedir os planos mensais: responda o que ela perguntou \(pode usar enviar_valores\)/)
+    assert.match(t, /=== CONTEXTO DA CONVERSA/)
+    assert.match(t, /responda primeiro o que a pessoa acabou de perguntar/)
+    assert.match(t, /Nunca repita uma pergunta que já foi respondida \(nome, objetivo\) nem comece com "Oi" no meio da conversa/)
+    assert.match(t, /Objetivo: levar ao fechamento/)
+  })
+
   it('cada fase diz ao modelo que dia é e o que usar', () => {
     assert.match(campanhaDoDia(real, brt('2026-11-10T10:00'), FUSO)!.aviso, /10\/11, a campanha está valendo \(até 30\/11\)/)
     assert.match(campanhaDoDia(real, brt('2026-11-25T10:00'), FUSO)!.aviso, /SEMANA FINAL[^.]*mensagem 7/)
@@ -187,9 +199,8 @@ describe('lista padrão de valores durante a campanha', () => {
     t.store.adicionarMensagem(CHAT, 'user', 'quero saber dos planos')
     await responder(t.deps, CHAT, undefined)
     const resultado = JSON.stringify(t.chamadas[1]!.messages.at(-1)!.content)
-    assert.match(resultado, /Estamos em campanha: NÃO envie a lista padrão de valores/)
-    assert.match(resultado, /mensagem 2 \(Semestral e Anual VIP\)/)
-    assert.doesNotMatch(resultado, /Trimestral VIP — R\$ 89,90/)
+    assert.match(resultado, /Se a pessoa AINDA NÃO disse se quer conhecer a promoção, NÃO envie esta lista/)
+    assert.match(resultado, /Só se ela RECUSOU a promoção ou pediu os planos mensais/)
   })
 
   it('fora da campanha (e depois do encerramento) a lista padrão continua', async () => {
@@ -206,7 +217,7 @@ describe('lista padrão de valores durante a campanha', () => {
 describe('instruções da academia com a campanha', () => {
   const i = readFileSync('./instrucoes.md', 'utf8')
   it('a apresentação inicial tem a exceção para lead da campanha', () => {
-    assert.match(i, /\*\*Exceção:\*\* se existir uma seção "CAMPANHA EM ANDAMENTO" e a pessoa for lead dela \(por exemplo, escreveu BLACK\), pule esta apresentação/)
+    assert.match(i, /\*\*Exceção:\*\* se existir uma seção "CAMPANHA EM ANDAMENTO", a primeira resposta segue a campanha \(para lead da campanha, pule esta apresentação; para os outros, use a apresentação da campanha, que pergunta se a pessoa quer conhecer a promoção\)/)
   })
   it('GoNutri e funcional saíram de todos os lugares', () => {
     assert.doesNotMatch(i, /GoNutri|funcional|nutri/i)

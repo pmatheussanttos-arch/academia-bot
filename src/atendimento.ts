@@ -11,6 +11,13 @@ export interface AtendimentoDeps extends AgenteDeps {
   avisarErro: (chave: string, texto: string) => Promise<void>
   /** Espera entre duas mensagens seguidas do assistente (os testes usam 0). */
   pausaEntreMensagensMs?: number
+  /**
+   * Quanto esperar antes de responder, para juntar mensagens seguidas do cliente ("Oi" + "Boa tarde" + "quanto custa?")
+   * numa resposta só. Padrão 0 (sem espera). Só tem efeito junto com `maisMensagensNaFila`.
+   */
+  esperaAgruparMs?: number
+  /** Há mais mensagens deste cliente esperando na fila, depois desta? */
+  maisMensagensNaFila?: (chat: string) => boolean
 }
 
 export const MSG_LIMITE = 'Você enviou muitas mensagens em pouco tempo 😅 Aguarde um pouco e tente de novo, ou fale com a recepção da academia.'
@@ -217,6 +224,16 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
         return await enviar(deps, msg, textoArquivoRecebido(cfg, msg.tipo))
       } else {
         return await enviar(deps, msg, msgAudio(cfg))
+      }
+    }
+
+    // Cliente escrevendo em várias mensagens seguidas: espera um pouco e, se chegou outra, deixa a resposta para ela
+    // (que vai ler o histórico inteiro). Assim sai UMA resposta para "Oi" + "Boa tarde" + "quanto custa?", e não três.
+    if (deps.esperaAgruparMs && deps.maisMensagensNaFila) {
+      await new Promise((r) => setTimeout(r, deps.esperaAgruparMs))
+      if (deps.maisMensagensNaFila(msg.from)) {
+        console.log(`[atendimento] +${msg.from} mandou outra mensagem em seguida: respondo tudo junto na próxima`)
+        return
       }
     }
 

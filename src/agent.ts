@@ -5,6 +5,7 @@ import { avisoDeMatricula, validarMatricula } from './matricula.js'
 import { carregarMensagens, renderizar } from './mensagens.js'
 import { CHAVES_PLANOS, PLANOS_PAGAMENTO, textoPagamentoCartao, trechoCartaoDaMatricula, type ChavePlano } from './pagamento.js'
 import { campanhaDoDia, carregarCampanha } from './campanha.js'
+import { alterarAvaliacao } from './minha-avaliacao.js'
 import { carregarInstrucoes, limparNome, montarSistema, situacaoDaConversa } from './prompt.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
 import type { Notificador } from './notify.js'
@@ -125,7 +126,7 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
   {
     name: 'chamar_humano',
     description:
-      'Passa a conversa para uma pessoa da equipe da academia e avisa a equipe. Use quando o cliente pedir uma pessoa, em reclamações, cancelamento ou trancamento (depois da regra de retenção das instruções), descontos, saúde ou lesão, pagamento por cartão, mudança ou cancelamento de uma visita já marcada, e quando o cliente aceitar que a equipe responda uma dúvida que você não sabe. Depois de usar, siga o que a ferramenta mandar dizer ao cliente. Para PEDIR uma visita nova, use solicitar_avaliacao, não esta.',
+      'Passa a conversa para uma pessoa da equipe da academia e avisa a equipe. Antes de usar, entenda o pedido: se dá para resolver com outra ferramenta ou com as instruções, resolva você mesmo. Use quando o cliente pedir uma pessoa, em reclamações, cancelamento ou trancamento (depois da regra de retenção das instruções), descontos, saúde ou lesão, cancelamento de uma visita já marcada, e quando o cliente aceitar que a equipe responda uma dúvida que você não sabe. Para TROCAR o nome, o dia ou o horário da avaliação já marcada, use alterar_avaliacao, não esta. Depois de usar, siga o que a ferramenta mandar dizer ao cliente. Para PEDIR uma visita nova, use solicitar_avaliacao, não esta.',
     strict: true,
     input_schema: {
       type: 'object',
@@ -154,6 +155,22 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
         plano: { type: 'string', enum: [...CHAVES_PLANOS], description: 'O plano que a pessoa quer pagar: 3x_por_semana, acesso_livre, trimestral_vip, semestral_vip ou anual_vip.' },
       },
       required: ['plano'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'alterar_avaliacao',
+    description:
+      'Altera a avaliação física que ESTE cliente já tem marcada (achada pelo número do WhatsApp): corrige o nome e/ou troca o dia e o horário. Use quando a pessoa pedir para trocar o nome da avaliação ou mudar o dia/horário, em vez de chamar a equipe. Para mudar o horário, combine antes o novo dia e horário (use consultar_horarios para oferecer opções, se ela não disse). Não cancela: para cancelar, use chamar_humano. A ferramenta devolve a confirmação para enviar, ou o motivo de não ter dado certo.',
+    strict: true,
+    input_schema: {
+      type: 'object',
+      properties: {
+        novo_nome: { type: 'string', description: 'Nome correto da pessoa que vai fazer a avaliação, como ela escreveu. Use "" se o nome não muda.' },
+        nova_data: { type: 'string', description: 'Novo dia no formato AAAA-MM-DD. Use "" se o dia não muda.' },
+        novo_horario: { type: 'string', description: 'Novo horário no formato HH:MM (ex.: "18:30"). Use "" se o horário não muda.' },
+      },
+      required: ['novo_nome', 'nova_data', 'novo_horario'],
       additionalProperties: false,
     },
   },
@@ -303,7 +320,7 @@ async function executarFerramenta(
     if (campanha && campanha.fase !== 'encerrada') {
       return resultado(
         bloco,
-        'Estamos em campanha: NÃO envie a lista padrão de valores. Siga a seção "CAMPANHA EM ANDAMENTO": mensagem 0 ou 1 se ainda não souber o objetivo da pessoa, e a mensagem 2 (Semestral e Anual VIP) depois que ela disser o objetivo.',
+        `Estamos em campanha. Se a pessoa AINDA NÃO disse se quer conhecer a promoção, NÃO envie esta lista: pergunte se ela quer conhecer a promoção da Black (mensagem A) ou siga as mensagens 0, 1 e 2 da seção "CAMPANHA EM ANDAMENTO". Só se ela RECUSOU a promoção ou pediu os planos mensais, envie EXATAMENTE a mensagem entre as linhas "---", mantendo as linhas [[nova mensagem]].\n---\n${textoValores(deps.cfg)}\n---`,
       )
     }
     return resultado(
@@ -323,6 +340,16 @@ async function executarFerramenta(
       bloco,
       `Envie ao cliente EXATAMENTE a mensagem entre as linhas "---", sem mudar o link nem nenhuma palavra e sem acrescentar texto antes ou depois. Não diga que o pagamento foi recebido. Quando a pessoa disser que pagou, peça o comprovante e use chamar_humano.\n---\n${mensagem}\n---`,
     )
+  }
+
+  if (bloco.name === 'alterar_avaliacao') {
+    const r = await alterarAvaliacao({ servico: deps.agenda, store: deps.store, notificar: deps.notificar }, chat, {
+      novoNome: campo(entrada.novo_nome, 60),
+      data: campo(entrada.nova_data, 10),
+      hhmm: campo(entrada.novo_horario, 5),
+    })
+    if (!r.ok) return resultado(bloco, r.motivo, true)
+    return resultado(bloco, `Alterado e equipe avisada. Envie ao cliente esta confirmação (pode completar com uma frase curta, sem pergunta de cobrança):\n---\n${r.mensagem}\n---`)
   }
 
   if (bloco.name === 'consultar_horarios') {

@@ -89,6 +89,11 @@ Limites (por causa do risco de bloqueio no modo QR):
 - **Cliente transferido que escreve 2 vezes** sem a equipe responder: o bot volta a atender. Se uma pessoa da equipe já assumiu a conversa, o bot não volta por esse caminho.
 - **Retomada de conversa parada:** se o cliente não responde em **15 minutos** no meio de uma venda, o bot manda "conseguiu ver minha mensagem? Vamos continuar?" (interruptor na aba Conversas, desligado por padrão).
 
+## O bot resolve sozinho (sem transferir)
+
+- **Trocar o nome ou o dia/horário da avaliação** que o próprio cliente marcou: o bot acha a avaliação pelo número do WhatsApp, troca na agenda do Google (com as mesmas regras da agenda dos professores) e a equipe recebe um aviso "🔁 Avaliação alterada pelo próprio cliente". **Cancelar** continua sendo com a equipe.
+- **Mensagens seguidas** ("Oi" + "Boa tarde" + "quanto custa?"): o bot espera 3 segundos e responde tudo numa mensagem só.
+
 ## Limites que você precisa saber
 
 - **O gasto é uma estimativa**, calculada pelo uso que o bot anotou e por uma tabela de preços. O valor de verdade está em console.anthropic.com. As conversas da aba Testar também entram na conta, porque gastam de verdade.

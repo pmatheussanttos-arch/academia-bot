@@ -7,6 +7,12 @@ O texto da campanha fica no arquivo **`campanha.md`**. O bot lê esse arquivo a 
 - Depois do fim, até `encerrada-ate` (31/12), o bot só usa o texto da seção `## encerrada` ("a Black acabou, mas posso te mostrar a melhor opção hoje"). Depois dessa data o arquivo é ignorado.
 - Durante a campanha, o texto vale **mais** do que as regras antigas: o bot não usa a lista padrão de valores (a ferramenta `enviar_valores` manda seguir a campanha) e pula a apresentação inicial para quem veio da Black.
 
+## Como o bot abre a conversa na campanha
+
+- Quem escreve **BLACK** (ou fala da promoção, do story, do anúncio): vai direto para a oferta (mensagens 0, 1 e 2).
+- Quem chega com "Oi", "Boa tarde" ou "qual o valor?": o bot se apresenta e **pergunta se a pessoa quer conhecer a promoção** (mensagem A). Se ela quiser, segue a oferta; se não, responde o que ela perguntou, sem insistir.
+- As mensagens-modelo são roteiro: o bot responde primeiro o que a pessoa perguntou e não repete pergunta já respondida.
+
 ## Para trocar o texto ou as datas
 
 Edite o `campanha.md` (as datas no começo e as seções `## campanha` e `## encerrada`) e faça o **Manual Deploy**. Arquivo sem o formato certo é ignorado, e o bot continua funcionando sem campanha. Para uma campanha nova, troque as datas e os textos.

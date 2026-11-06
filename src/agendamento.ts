@@ -262,7 +262,7 @@ export class ServicoAgenda {
           const r = rotulo(anterior.inicio, agenda.fusoHorario)
           return {
             ok: false,
-            motivo: `Este cliente já tem uma avaliação agendada: ${r.dia} às ${r.hora}. Não agende outra. Se ele quiser mudar ou cancelar, use chamar_humano.`,
+            motivo: `Este cliente já tem uma avaliação agendada: ${r.dia} às ${r.hora}. Não agende outra. Se ele quiser mudar o dia, o horário ou o nome, use alterar_avaliacao; para cancelar, use chamar_humano.`,
           }
         }
         store.cancelarAgendamento(anterior.id) // a equipe apagou o evento na agenda: o cliente pode marcar de novo
