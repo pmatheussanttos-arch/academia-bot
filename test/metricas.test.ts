@@ -153,7 +153,21 @@ describe('funil, comparecimento e matrículas', () => {
     t.store.registrarEvento('avaliacao_bot', WA, 'x', dia)
     t.store.registrarMatricula({ chat: WA, nome: 'Ana Souza', telefone: WA, email: '', nascimento: '', plano: 'VIP', pagamento: 'pix', observacao: '' }, dia)
     const r = await t.metricas.resumo()
-    assert.deepEqual(r.funil, { conversas: 3, avaliacoesPeloBot: 1, avaliacoes: 5, matriculasPeloBot: 1, avaliacoesQueMatricularam: 1 })
+    assert.deepEqual(r.funil, { conversas: 3, avaliacoesPeloBot: 1, avaliacoes: 5, matriculasPeloBot: 1, avaliacoesQueMatricularam: 1, doAnuncio: 0, matriculasDoAnuncio: 0 })
+  })
+
+  it('conta quem veio do anúncio e quantos desses fecharam matrícula', async () => {
+    const t = montar()
+    const dia = AGORA.getTime() - 3 * 86_400_000
+    for (const chat of ['5511900000001', '5511900000002', WA]) t.store.adicionarMensagem(chat, 'user', 'oi', dia)
+    t.store.registrarEvento('veio_do_anuncio', '5511900000001', 'Black', dia)
+    t.store.registrarEvento('veio_do_anuncio', WA, 'Black', dia)
+    t.store.registrarEvento('veio_do_anuncio', '5511900000009', 'Black', AGORA.getTime() - 40 * 86_400_000) // mês passado
+    t.store.registrarMatricula({ chat: WA, nome: 'Ana Souza', telefone: WA, email: '', nascimento: '', plano: 'VIP', pagamento: 'pix', observacao: '' }, dia)
+    t.store.registrarMatricula({ chat: '5511900000002', nome: 'Bia', telefone: '5511900000002', email: '', nascimento: '', plano: 'VIP', pagamento: 'pix', observacao: '' }, dia)
+    const r = await t.metricas.resumo()
+    assert.equal(r.funil.doAnuncio, 2)
+    assert.equal(r.funil.matriculasDoAnuncio, 1)
   })
 
   it('o número com ou sem o 9 extra é a mesma pessoa', async () => {

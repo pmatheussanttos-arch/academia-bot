@@ -75,6 +75,23 @@ export function conteudoReal(message: Record<string, unknown> | null | undefined
 export interface ConteudoMensagem {
   tipo: string
   texto?: string
+  /** Veio do botão de um anúncio (Facebook/Instagram): título e texto do anúncio ('' se o WhatsApp não mandou). */
+  anuncio?: string
+}
+
+/**
+ * Anúncio de "clique para o WhatsApp": o WhatsApp manda junto da mensagem um cartão com os dados do anúncio
+ * (`contextInfo.externalAdReply`). Devolve o título e o texto do anúncio, ou undefined se a mensagem não veio de um.
+ */
+export function dadosDoAnuncio(c: Record<string, unknown>): string | undefined {
+  for (const chave of ['extendedTextMessage', 'imageMessage', 'videoMessage'] as const) {
+    const m = c[chave] as { contextInfo?: { externalAdReply?: Record<string, unknown> | null } } | undefined
+    const ad = m?.contextInfo?.externalAdReply
+    if (!ad || typeof ad !== 'object') continue
+    const partes = [ad.title, ad.body].filter((v): v is string => typeof v === 'string' && v.trim() !== '').map((v) => v.trim())
+    return partes.join(' — ').slice(0, 200)
+  }
+  return undefined
 }
 
 const COM_LEGENDA = ['imageMessage', 'videoMessage', 'documentMessage'] as const
@@ -86,7 +103,10 @@ export function interpretarConteudo(message: Record<string, unknown> | null | un
 
   if (typeof c.conversation === 'string') return { tipo: 'text', texto: c.conversation }
   const ext = c.extendedTextMessage as { text?: string } | undefined
-  if (ext && typeof ext.text === 'string') return { tipo: 'text', texto: ext.text }
+  if (ext && typeof ext.text === 'string') {
+    const anuncio = dadosDoAnuncio(c)
+    return { tipo: 'text', texto: ext.text, ...(anuncio !== undefined ? { anuncio } : {}) }
+  }
 
   // Clique em botão ou item de lista que a academia tenha enviado: tratamos como texto.
   const btn = c.buttonsResponseMessage as { selectedDisplayText?: string } | undefined
@@ -172,6 +192,7 @@ export function classificar(m: MensagemBaileys, idsDoBot: ReadonlySet<string>, t
       tipo: conteudo.tipo,
       texto: conteudo.texto,
       ...(contato.lid ? { lid: contato.lid } : {}),
+      ...(conteudo.anuncio !== undefined ? { anuncio: conteudo.anuncio } : {}),
     },
   }
 }

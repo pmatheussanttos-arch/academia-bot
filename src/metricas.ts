@@ -1,4 +1,5 @@
 import type { EstadoWhatsapp } from './baileys.js'
+import { EVENTO_ANUNCIO } from './anuncio.js'
 import { diaDaSemana, epochLocal, horariosDoDia, hojeISO, somarDias, type DiaSemana } from './agenda.js'
 import type { ServicoAgenda } from './agendamento.js'
 import { normalizarNumero, type Config } from './config.js'
@@ -71,7 +72,7 @@ export interface ResumoPainel {
   porDiaSemana: Array<{ dia: DiaSemana; rotulo: string; total: number }>
   porHorario: Array<{ hhmm: string; total: number }>
   ocupacao: { dias: number; total: number; ocupados: number; livres: number; percentual: number }
-  funil: { conversas: number; avaliacoesPeloBot: number; avaliacoes: number; matriculasPeloBot: number; avaliacoesQueMatricularam: number }
+  funil: { conversas: number; avaliacoesPeloBot: number; avaliacoes: number; matriculasPeloBot: number; avaliacoesQueMatricularam: number; doAnuncio: number; matriculasDoAnuncio: number }
   comparecimento: {
     veio: number
     faltou: number
@@ -349,6 +350,7 @@ export class Metricas {
 
     // --- funil e comparecimento ---
     const conversas = store.conversasNovas(msMesIni, msMesFim)
+    const chatsDoAnuncio = new Set(store.eventosRecentes(EVENTO_ANUNCIO, 5000, msMesIni).filter((e) => e.ts < msMesFim).map((e) => e.chat))
     const matriculasMes = store.contarMatriculas(msMesIni, msMesFim)
     const numerosMatriculados = new Set(store.matriculas(500).flatMap((m) => [normalizarNumero(m.telefone), normalizarNumero(m.chat)]))
     const queMatricularam = doMes.filter((a) => a.whatsapp && numerosMatriculados.has(normalizarNumero(a.whatsapp))).length
@@ -400,7 +402,15 @@ export class Metricas {
       porDiaSemana,
       porHorario,
       ocupacao: { dias: diasOcupacao, total, ocupados, livres: total - ocupados, percentual: total > 0 ? Math.round((ocupados / total) * 100) : 0 },
-      funil: { conversas, avaliacoesPeloBot: store.contarEventos('avaliacao_bot', msMesIni, msMesFim), avaliacoes: doMes.length, matriculasPeloBot: matriculasMes, avaliacoesQueMatricularam: queMatricularam },
+      funil: {
+        conversas,
+        avaliacoesPeloBot: store.contarEventos('avaliacao_bot', msMesIni, msMesFim),
+        avaliacoes: doMes.length,
+        matriculasPeloBot: matriculasMes,
+        avaliacoesQueMatricularam: queMatricularam,
+        doAnuncio: chatsDoAnuncio.size,
+        matriculasDoAnuncio: store.matriculas(500).filter((m) => m.ts >= msMesIni && m.ts < msMesFim && chatsDoAnuncio.has(m.chat)).length,
+      },
       comparecimento: {
         veio,
         faltou,

@@ -9,6 +9,8 @@ export interface MensagemRecebida {
   texto?: string
   /** Código interno (`lid`) com que o WhatsApp identificou o remetente, quando ele difere do telefone em `from`. */
   lid?: string
+  /** A pessoa chegou clicando num anúncio (Facebook/Instagram): título e texto do anúncio, quando o WhatsApp informa. */
+  anuncio?: string
 }
 
 export interface ClienteWhatsapp {

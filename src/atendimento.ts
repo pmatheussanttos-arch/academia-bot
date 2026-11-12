@@ -1,4 +1,5 @@
 import { ehNumeroDaEquipe, remetentePermitido } from './config.js'
+import { EVENTO_ANUNCIO, ehTextoDeAnuncio } from './anuncio.js'
 import { anotar, encaminharParaHumano, msgErroTecnico, responder, type AgenteDeps } from './agent.js'
 import { carregarMensagens, renderizar } from './mensagens.js'
 import { formatarWhatsapp, linkRecepcao } from './recepcao.js'
@@ -190,6 +191,9 @@ export async function tratarMensagem(deps: AtendimentoDeps, msg: MensagemRecebid
 
     const registro = ehTexto ? msg.texto!.trim().slice(0, MAX_ENTRADA) : `[${NOMES_TIPO[msg.tipo] ?? msg.tipo} enviado${msg.texto ? `: ${msg.texto.slice(0, 200)}` : ''}]`
     store.adicionarMensagem(msg.from, 'user', registro)
+    if ((msg.anuncio !== undefined || ehTextoDeAnuncio(msg.texto)) && !store.teveEvento(msg.from, [EVENTO_ANUNCIO], 0)) {
+      anotar(() => store.registrarEvento(EVENTO_ANUNCIO, msg.from, (msg.anuncio || msg.texto || '').slice(0, 200)))
+    }
 
     // Pausa geral ou conversa com a equipe: o bot não responde. Também NÃO marca como lida, para a equipe ver a
     // mensagem ainda não lida no celular (e o cliente não ver "lido" sem que ninguém tenha lido).

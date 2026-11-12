@@ -307,6 +307,7 @@ function abaVendas(d: DadosPainel): string {
   return `${avisoAgenda(r)}
     <section class="cartao"><div class="titulo">🔻 Funil de ${esc(r.mesRotulo)}</div>
       <div class="funil">${passo(f.conversas, 'conversas novas no WhatsApp')}<span class="seta">→</span>${passo(f.avaliacoes, 'avaliações na agenda (todas as origens)')}<span class="seta">→</span>${passo(f.matriculasPeloBot, 'matrículas fechadas pelo WhatsApp')}</div>
+      <p>📣 <b>${f.doAnuncio}</b> conversa(s) vieram do anúncio (Facebook/Instagram)${f.doAnuncio > 0 ? `, e ${f.matriculasDoAnuncio} delas já fecharam matrícula pelo WhatsApp` : ''}.</p>
       <p>${f.avaliacoesPeloBot} das avaliações foram marcadas pelo assistente. ${f.avaliacoesQueMatricularam} avaliação(ões) do mês têm o mesmo telefone de uma matrícula feita pelo WhatsApp.</p>
       <p class="dica">Atenção: só entram aqui as matrículas que o cliente fechou pela conversa. Quem fecha na recepção, depois da avaliação, não aparece neste funil. Para isso existe o botão "🏋️ Matriculou" nas avaliações.</p></section>
     ${cartaoMatriculas(d)}`

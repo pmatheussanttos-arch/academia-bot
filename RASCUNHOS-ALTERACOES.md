@@ -125,7 +125,16 @@ Texto no `campanha.md` (entra e sai do prompt sozinho: 02/11 a 30/11; encerramen
 Pedido do Matheus (print da Mariana: o bot ofereceu horário só para ela vir treinar). Agora:
 - **Só a avaliação física tem horário marcado.** Treino e aula experimental: é só vir no horário de funcionamento. Se o bot tentar marcar horário de aula experimental, o sistema bloqueia e manda ele dizer "é só vir".
 - **Aluno novo:** o bot pergunta sempre "Você já tem o seu treino próprio, ou quer que a gente monte o seu treino?". Sem treino: explica que o professor monta o treino na avaliação física (20 a 30 min) e oferece agendar. Com treino: pode vir direto.
-- **Aguardando:** a primeira mensagem do anúncio da Black, para o bot reconhecer quem vem do anúncio.
+- **Anúncio:** recebido em 12/11 (ver item 6).
+
+---
+
+## 6. Leads do anúncio e acolhimento (12/11/2026) — APLICADA
+
+- **Quem vem do anúncio** (botão "clique para o WhatsApp", texto pronto "Olá! Posso ter mais informações sobre isso?") é reconhecido de dois jeitos: pelo cartão do anúncio que o WhatsApp manda junto e pelo texto pronto. O bot não pergunta se a pessoa quer ver a promoção (ela já quer).
+- **Nome primeiro, sempre** (pedido do Matheus): mensagem 0 = gancho da oferta + só o nome; depois o objetivo (1b); depois a oferta (2) terminando com "Qual dos dois combina mais com você?"; escolheu → link de pagamento; depois pergunta do treino próprio / avaliação.
+- **Painel (aba Vendas):** quantas conversas vieram do anúncio no mês e quantas fecharam matrícula pelo WhatsApp.
+- **Saúde, dor, medo (caso da Silvana):** o bot não transfere mais. Acolhe em 2 mensagens curtas, no estilo do Matheus, e leva para a avaliação física. Sem diagnóstico e sem prometer melhora. Emergência e dor forte agora continuam indo para a equipe.
 
 ---
 

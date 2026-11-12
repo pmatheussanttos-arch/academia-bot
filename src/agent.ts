@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { DICA_ANUNCIO, EVENTO_ANUNCIO } from './anuncio.js'
 import type { PeriodoPedido, ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
 import { avisoDeMatricula, validarMatricula } from './matricula.js'
@@ -439,6 +440,7 @@ export async function responder(deps: AgenteDeps, chat: string, nome: string | u
   const agora = (deps.agora ?? (() => new Date()))()
   const historico = store.historico(chat, cfg.historicoMax)
   const situacao = situacaoDaConversa(store.historico(chat, 200).filter((m) => m.papel === 'assistant').map((m) => m.conteudo))
+  if (store.teveEvento(chat, [EVENTO_ANUNCIO], 0)) situacao.unshift(DICA_ANUNCIO)
   const campanha = campanhaDoDia(carregarCampanha(cfg.campanhaPath), agora, deps.agenda.fuso)
   const system = montarSistema(carregarInstrucoes(cfg.instrucoesPath), agora, nome, deps.agenda.fuso, situacao, campanha)
   const mensagens = historicoParaMensagens(historico)
