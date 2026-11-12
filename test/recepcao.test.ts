@@ -176,7 +176,7 @@ describe('pedidos de visita com número de recepção', () => {
 
   it('o fluxo completo pela conversa entrega a mensagem da ferramenta', async () => {
     const t = criarDepsDeAgente(
-      [usarFerramenta('solicitar_avaliacao', { tipo: 'aula_experimental', nome: 'Beto', data: SEGUNDA, horario: '15:00', observacao: '', ja_e_aluno: false, plano_vip: false }), texto('x')],
+      [usarFerramenta('solicitar_avaliacao', { tipo: 'avaliacao_fisica', nome: 'Beto', data: SEGUNDA, horario: '15:00', observacao: '', ja_e_aluno: false, plano_vip: false }), texto('x')],
       RECEPCAO,
     )
     t.store.adicionarMensagem(CHAT, 'user', 'quero experimentar segunda 15h')

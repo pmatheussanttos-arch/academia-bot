@@ -119,16 +119,22 @@ describe('tratarMensagem', () => {
     assert.equal(t.enviadas[0]?.texto, 'Esse horário acabou de ser ocupado. Posso 10:30?')
   })
 
-  it('aula experimental: pedido registrado, equipe avisada, bot segue atendendo', async () => {
-    const t = montar([
-      usarFerramenta('solicitar_avaliacao', { tipo: 'aula_experimental', nome: 'Beto', data: SEGUNDA, horario: '15:00', observacao: 'primeira vez', ja_e_aluno: false, plano_vip: false }),
-      texto('MENSAGEM-DO-MODELO'),
-    ])
-    await tratarMensagem(t.deps, msg({ texto: 'quero experimentar segunda 15h' }))
-    assert.match(JSON.stringify(t.chamadas[1]!.messages.at(-1)!.content), /ainda NÃO está agendado/)
-    assert.match(t.avisos[0]!, /Pedido de aula experimental/)
-    assert.match(t.avisos[0]!, /primeira vez/)
-    assert.equal(t.store.emHandoff(CLIENTE), false)
+  it('aula experimental não tem horário: nada é marcado, equipe não é avisada, bot diz "é só vir"', async () => {
+    for (const ferramenta of ['solicitar_avaliacao', 'consultar_horarios']) {
+      const entrada =
+        ferramenta === 'solicitar_avaliacao'
+          ? { tipo: 'aula_experimental', nome: 'Beto', data: SEGUNDA, horario: '15:00', observacao: 'primeira vez', ja_e_aluno: false, plano_vip: false }
+          : { tipo: 'aula_experimental', data: SEGUNDA, periodo: 'tarde' }
+      const t = montar([usarFerramenta(ferramenta, entrada), texto('MENSAGEM-DO-MODELO')])
+      await tratarMensagem(t.deps, msg({ texto: 'quero experimentar segunda 15h' }))
+      const volta = t.chamadas[1]!.messages.at(-1)!.content as Array<{ is_error?: boolean; content?: string }>
+      assert.notEqual(volta[0]?.is_error, true)
+      assert.match(String(volta[0]?.content), /NÃO precisa de horário marcado/)
+      assert.match(String(volta[0]?.content), /treino próprio/)
+      assert.equal(t.avisos.length, 0, ferramenta)
+      assert.equal(t.store.emHandoff(CLIENTE), false)
+      assert.equal(t.enviadas[0]?.texto, 'MENSAGEM-DO-MODELO')
+    }
   })
 
   it('respeita a lista de números de teste', async () => {

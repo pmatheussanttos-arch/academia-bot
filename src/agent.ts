@@ -119,8 +119,12 @@ export function criarClienteClaude(): ClienteClaude {
 const TIPO_VISITA = {
   type: 'string',
   enum: ['aula_experimental', 'avaliacao_fisica'],
-  description: 'aula_experimental (gratuita) ou avaliacao_fisica (paga, exceto nos planos VIP).',
+  description: 'Sempre avaliacao_fisica. A aula experimental e o treino NÃO têm horário marcado (é só vir no horário de funcionamento).',
 } as const
+
+/** Aula experimental e treino não têm horário marcado: a ferramenta devolve isto em vez de agendar. */
+export const SEM_AGENDAR_EXPERIMENTAL =
+  'NÃO AGENDADO: a aula experimental (e o treino) NÃO precisa de horário marcado. Não ofereça nem confirme horário. Diga ao cliente, em poucas palavras, que é só vir no horário de funcionamento das instruções, com roupa de treino, e pergunte se ele já tem o treino próprio (se não tiver, o treino é montado na avaliação física, que essa sim tem horário marcado).'
 
 export const FERRAMENTAS: Anthropic.Tool[] = [
   {
@@ -177,7 +181,7 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
   {
     name: 'consultar_horarios',
     description:
-      'Lista os horários de aula experimental ou de avaliação em uma data e período do dia. Para avaliação, consulta o Google Agenda e mostra só os horários livres. Use antes de OFERECER horários: nunca invente horários. Se o cliente já escolheu dia e horário, vá direto para solicitar_avaliacao. Informe a data como AAAA-MM-DD; para "segunda", "amanhã" etc., calcule a partir da data de hoje informada no início da conversa. Não registra nada.',
+      'Lista os horários livres da avaliação física em uma data e período do dia (só a avaliação tem horário marcado; para treinar ou fazer aula experimental é só vir no horário de funcionamento). Consulta o Google Agenda e mostra só os horários livres. Use antes de OFERECER horários: nunca invente horários. Se o cliente já escolheu dia e horário, vá direto para solicitar_avaliacao. Informe a data como AAAA-MM-DD; para "segunda", "amanhã" etc., calcule a partir da data de hoje informada no início da conversa. Não registra nada.',
     strict: true,
     input_schema: {
       type: 'object',
@@ -198,7 +202,7 @@ export const FERRAMENTAS: Anthropic.Tool[] = [
   {
     name: 'solicitar_avaliacao',
     description:
-      'Marca a avaliação física (agenda de verdade, quando a ferramenta devolver a mensagem de "agendada") ou registra o pedido de aula experimental (a equipe confirma). Use assim que tiver tipo, nome, data e horário escolhidos pelo cliente. Se o cliente JÁ disse nome, dia e horário, chame esta ferramenta direto, sem transferir para a equipe e sem pedir de novo o que ele já disse: a própria ferramenta confere o horário e, se estiver ocupado, devolve os horários livres. A ferramenta devolve a mensagem final que você deve enviar ao cliente. Não silencia o bot: a conversa continua normal.',
+      'Marca a avaliação física (agenda de verdade, quando a ferramenta devolver a mensagem de "agendada"). Só a avaliação física tem horário: nunca use para treino nem para aula experimental. Use assim que tiver tipo, nome, data e horário escolhidos pelo cliente. Se o cliente JÁ disse nome, dia e horário, chame esta ferramenta direto, sem transferir para a equipe e sem pedir de novo o que ele já disse: a própria ferramenta confere o horário e, se estiver ocupado, devolve os horários livres. A ferramenta devolve a mensagem final que você deve enviar ao cliente. Não silencia o bot: a conversa continua normal.',
     strict: true,
     input_schema: {
       type: 'object',
@@ -355,6 +359,7 @@ async function executarFerramenta(
   if (bloco.name === 'consultar_horarios') {
     const tipo = tipoDe(entrada.tipo)
     if (!tipo) return resultado(bloco, 'Tipo inválido. Use aula_experimental ou avaliacao_fisica.', true)
+    if (tipo === 'aula_experimental') return resultado(bloco, SEM_AGENDAR_EXPERIMENTAL)
     const periodo: PeriodoPedido = entrada.periodo === 'manha' || entrada.periodo === 'tarde' || entrada.periodo === 'noite' ? entrada.periodo : 'qualquer'
     return resultado(bloco, await deps.agenda.consultar(tipo, campo(entrada.data, 10), periodo))
   }
@@ -362,6 +367,7 @@ async function executarFerramenta(
   if (bloco.name === 'solicitar_avaliacao') {
     const tipo = tipoDe(entrada.tipo)
     if (!tipo) return resultado(bloco, 'Tipo inválido. Use aula_experimental ou avaliacao_fisica.', true)
+    if (tipo === 'aula_experimental') return resultado(bloco, SEM_AGENDAR_EXPERIMENTAL)
     const r = await deps.agenda.solicitar({
       chat,
       nomeContato: limparNome(nome),

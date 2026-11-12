@@ -120,4 +120,13 @@ Texto no `campanha.md` (entra e sai do prompt sozinho: 02/11 a 30/11; encerramen
 
 ---
 
+## 5. Treinar não precisa agendar (12/11/2026) — APLICADA
+
+Pedido do Matheus (print da Mariana: o bot ofereceu horário só para ela vir treinar). Agora:
+- **Só a avaliação física tem horário marcado.** Treino e aula experimental: é só vir no horário de funcionamento. Se o bot tentar marcar horário de aula experimental, o sistema bloqueia e manda ele dizer "é só vir".
+- **Aluno novo:** o bot pergunta sempre "Você já tem o seu treino próprio, ou quer que a gente monte o seu treino?". Sem treino: explica que o professor monta o treino na avaliação física (20 a 30 min) e oferece agendar. Com treino: pode vir direto.
+- **Aguardando:** a primeira mensagem do anúncio da Black, para o bot reconhecer quem vem do anúncio.
+
+---
+
 (próximas alterações entram aqui embaixo)

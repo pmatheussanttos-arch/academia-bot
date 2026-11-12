@@ -51,7 +51,7 @@ describe('identidade e condução da conversa (GFIT)', () => {
   })
 
   it('conduz para aula experimental ou avaliação', () => {
-    assert.match(i, /conduza para o próximo passo: aula experimental gratuita ou avaliação física/)
+    assert.match(i, /conduza para o próximo passo: aula experimental gratuita \(é só vir, sem agendar\) ou avaliação física/)
   })
 })
 

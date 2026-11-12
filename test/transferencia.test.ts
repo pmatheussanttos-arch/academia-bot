@@ -82,7 +82,7 @@ describe('modo QR: o cliente nunca recebe número de telefone', () => {
 
   it('pedido de visita: "a equipe confirma por aqui", sem link', async () => {
     const t = criarDepsDeAgente(
-      [usarFerramenta('solicitar_avaliacao', { tipo: 'aula_experimental', nome: 'Beto', data: SEGUNDA, horario: '15:00', observacao: '', ja_e_aluno: false, plano_vip: false }), texto('x')],
+      [usarFerramenta('solicitar_avaliacao', { tipo: 'avaliacao_fisica', nome: 'Beto', data: SEGUNDA, horario: '15:00', observacao: '', ja_e_aluno: false, plano_vip: false }), texto('x')],
       QR_COM_PESSOAL,
     )
     t.store.adicionarMensagem(CHAT, 'user', 'quero experimentar segunda 15h')

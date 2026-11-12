@@ -62,3 +62,20 @@ describe('bot vendedor: quebra de objeções, curto e amigável', () => {
     assert.match(secao, /A exceção é a mensagem de valores e as mensagens oficiais das ferramentas/)
   })
 })
+
+describe('treinar não precisa agendar; só a avaliação física tem horário', () => {
+  const i = readFileSync(new URL('../instrucoes.md', import.meta.url), 'utf8')
+  it('diz que treino e aula experimental não têm horário marcado', () => {
+    assert.match(i, /Para treinar não precisa agendar nada/)
+    assert.match(i, /\*\*Nunca\*\* ofereça horário marcado para treinar/)
+    assert.match(i, /A aula experimental também não precisa agendar/)
+    assert.match(i, /O único horário marcado é o da avaliação física/)
+    assert.doesNotMatch(i, /É só agendar e vir/)
+    assert.doesNotMatch(i, /aula experimental[^\n]*Qual dia fica bom/)
+  })
+  it('aluno novo: pergunta se tem treino próprio e explica a avaliação', () => {
+    assert.match(i, /Você já tem o seu treino próprio, ou quer que a gente monte o seu treino\?/)
+    assert.match(i, /Nela o professor conhece o seu objetivo e o seu condicionamento e monta o seu treino/)
+    assert.match(i, /Se já tem treino próprio:\*\* pode vir treinar direto/)
+  })
+})
