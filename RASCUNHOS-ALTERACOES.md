@@ -1,6 +1,6 @@
 # Rascunhos de alterações
 
-**Situação:** o item 1 (mensagem de valores) já foi aplicado no bot. O item 2 (pagamento por cartão com link da InfinitePay) também foi aplicado em 24/10/2026; sobrou conferir os valores dos links do 3x e do Livre.
+**Situação:** o item 1 (mensagem de valores) já foi aplicado no bot. O item 2 (pagamento por cartão com link da InfinitePay) também foi aplicado em 24/10/2026; os valores dos links do 3x e do Livre ficam como estão (decisão de 19/11/2026).
 
 Aqui ficam as mudanças combinadas com o Matheus. Este arquivo não afeta o bot: serve para juntar as ideias e aplicar quando o Matheus mandar. O texto vivo da mensagem de valores fica no `mensagens.md` (seção `valores`).
 
@@ -75,7 +75,7 @@ Qual desses encaixa melhor no seu objetivo? 💪🏼
 
 ## 2. Pagamento por cartão pelo bot — APLICADO em 24/10/2026 (link da InfinitePay)
 
-**Como ficou:** os 5 links (3x, Livre, Trimestral, Semestral e Anual VIP) estão no `mensagens.md`, seção `links-pagamento` (linha com `#` na frente fica desligada). Decisões do Matheus: **os VIP ficam com link também** (para não perder a primeira impressão de venda); **a página do link parcela**, então o bot informa até 3x (Trimestral), 6x (Semestral) e 12x (Anual) e os básicos seguem sem parcelamento; **o comprovante é sempre pedido** para finalizar a matrícula (Pix ou link). O bot manda o link do plano (ferramenta `enviar_link_pagamento`, e automaticamente na mensagem de matrícula no cartão), pede o comprovante e chama a equipe; nunca confirma pagamento. **ATENÇÃO:** os links do 3x e do Livre cobram R$ 90,00 e R$ 100,00, e os planos custam R$ 89,90 e R$ 99,90: conferir.
+**Como ficou:** os 5 links (3x, Livre, Trimestral, Semestral e Anual VIP) estão no `mensagens.md`, seção `links-pagamento` (linha com `#` na frente fica desligada). Decisões do Matheus: **os VIP ficam com link também** (para não perder a primeira impressão de venda); **a página do link parcela**, então o bot informa até 3x (Trimestral), 6x (Semestral) e 12x (Anual) e os básicos seguem sem parcelamento; **o comprovante é sempre pedido** para finalizar a matrícula (Pix ou link). O bot manda o link do plano (ferramenta `enviar_link_pagamento`, e automaticamente na mensagem de matrícula no cartão), pede o comprovante e chama a equipe; nunca confirma pagamento. Os links do 3x e do Livre cobram R$ 90,00 e R$ 100,00 (os planos custam R$ 89,90 e R$ 99,90): **o Matheus decidiu deixar assim (19/11/2026).**
 
 Ideia do Matheus: integrar pagamento por cartão para o bot conduzir o cliente até pagar.
 
@@ -141,6 +141,10 @@ Pedido do Matheus (print da Mariana: o bot ofereceu horário só para ela vir tr
 ## 7. Bot reiniciando por falta de memória (19/11/2026) — CORRIGIDO
 
 E-mail da Render: "exceeded its memory limit" depois de lançar as ações pendentes no painel. Causa: o bot criava um formatador de data novo a cada data formatada, e essa memória (fora do JavaScript) quase nunca era devolvida. O painel formata cada avaliação da agenda; com a agenda cheia, 100 recargas passavam de 2,6 GB (o plano tem 512 MB). Agora os formatadores são reaproveitados: 300 recargas ficam em ~95 MB. Também: memória no /health e no log (linha "[memória]"), e limite de memória do Node no Dockerfile.
+
+---
+
+**Decisões de 19/11/2026:** interruptor "Retomada" ligado no painel. Responder quem escreveu com o bot fora do ar: não fazer por enquanto (o bot raramente fica fora). Links da InfinitePay do 3x e do Livre: ficam com R$ 90,00 e R$ 100,00.
 
 ---
 
