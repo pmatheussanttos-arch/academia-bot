@@ -1,4 +1,5 @@
 import type { Store } from './store.js'
+import { formatoData } from './formato-data.js'
 
 /**
  * Pausa GERAL do assistente (todos os clientes). Dois jeitos de acionar, com as mesmas regras: o botão da página
@@ -59,7 +60,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 
 /** "às 15:30" se for hoje, "em 21/10 às 08:00" se não. No fuso da academia. */
 export function quando(ate: number, fuso: string, agora = Date.now()): string {
-  const f = new Intl.DateTimeFormat('pt-BR', { timeZone: fuso, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  const f = formatoData('pt-BR', { timeZone: fuso, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
   const partes = (ms: number) => Object.fromEntries(f.formatToParts(new Date(ms)).map((p) => [p.type, p.value]))
   const a = partes(ate)
   const hoje = partes(agora)

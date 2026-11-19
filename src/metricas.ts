@@ -1,4 +1,5 @@
 import type { EstadoWhatsapp } from './baileys.js'
+import { formatoData } from './formato-data.js'
 import { EVENTO_ANUNCIO } from './anuncio.js'
 import { diaDaSemana, epochLocal, horariosDoDia, hojeISO, somarDias, type DiaSemana } from './agenda.js'
 import type { ServicoAgenda } from './agendamento.js'
@@ -111,12 +112,12 @@ function marcadoPorDe(e: EventoAgenda): string {
 
 /** Hora cheia (0 a 23) no fuso da academia. */
 function horaLocal(ms: number, fuso: string): number {
-  const h = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: fuso }).format(new Date(ms))
+  const h = formatoData('en-GB', { hour: '2-digit', hour12: false, timeZone: fuso }).format(new Date(ms))
   return Number(h) % 24
 }
 
 function hhmmLocal(ms: number, fuso: string): string {
-  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: fuso }).format(new Date(ms)).replace(/^24/, '00')
+  return formatoData('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: fuso }).format(new Date(ms)).replace(/^24/, '00')
 }
 
 const DIAS_ORDEM: DiaSemana[] = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']
@@ -325,7 +326,7 @@ export class Metricas {
     const porDiaSemana = DIAS_ORDEM.map((dia) => ({
       dia,
       rotulo: ROTULO_DIA[dia],
-      total: doMes.filter((a) => diaDaSemana(new Intl.DateTimeFormat('en-CA', { timeZone: this.fuso }).format(new Date(a.inicio))) === dia).length,
+      total: doMes.filter((a) => diaDaSemana(formatoData('en-CA', { timeZone: this.fuso }).format(new Date(a.inicio))) === dia).length,
     })).filter((d) => d.total > 0)
     const horarios = new Map<string, number>()
     for (const a of doMes) {
@@ -393,7 +394,7 @@ export class Metricas {
     return {
       geradoEm: agora,
       agenda,
-      mesRotulo: new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${mesIni}T00:00:00Z`)),
+      mesRotulo: formatoData('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${mesIni}T00:00:00Z`)),
       hoje: noPeriodo(msHoje, msAmanha),
       proximas: todas.filter((a) => a.inicio >= agora && a.inicio < epochLocal(somarDias(hoje, 15), '00:00', this.fuso)),
       semana: contar(noPeriodo(msSemIni, msSemFim)),

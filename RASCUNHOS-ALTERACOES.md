@@ -138,4 +138,10 @@ Pedido do Matheus (print da Mariana: o bot ofereceu horário só para ela vir tr
 
 ---
 
+## 7. Bot reiniciando por falta de memória (19/11/2026) — CORRIGIDO
+
+E-mail da Render: "exceeded its memory limit" depois de lançar as ações pendentes no painel. Causa: o bot criava um formatador de data novo a cada data formatada, e essa memória (fora do JavaScript) quase nunca era devolvida. O painel formata cada avaliação da agenda; com a agenda cheia, 100 recargas passavam de 2,6 GB (o plano tem 512 MB). Agora os formatadores são reaproveitados: 300 recargas ficam em ~95 MB. Também: memória no /health e no log (linha "[memória]"), e limite de memória do Node no Dockerfile.
+
+---
+
 (próximas alterações entram aqui embaixo)

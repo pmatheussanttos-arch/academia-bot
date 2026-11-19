@@ -1,4 +1,5 @@
 import { readFileSync, statSync } from 'node:fs'
+import { formatoData } from './formato-data.js'
 import type Anthropic from '@anthropic-ai/sdk'
 import { hojeISO } from './agenda.js'
 
@@ -72,7 +73,7 @@ export function limparNome(nome: string | undefined): string {
 }
 
 export function formatarAgora(agora: Date): string {
-  return new Intl.DateTimeFormat('pt-BR', {
+  return formatoData('pt-BR', {
     timeZone: 'America/Sao_Paulo',
     weekday: 'long',
     day: '2-digit',

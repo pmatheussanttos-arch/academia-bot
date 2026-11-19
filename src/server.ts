@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { MonitorMemoria, lerMemoria } from './memoria.js'
 import { serve } from '@hono/node-server'
 import { criarClienteClaude } from './agent.js'
 import { criarServicoAgenda } from './agendamento.js'
@@ -106,6 +107,15 @@ store.limpar(cfg.retencaoDias)
   if (pausa) console.log(`⏸️  O assistente está PAUSADO${pausa.ate === null ? ' (até alguém reativar)' : ` (volta sozinho em ${new Date(pausa.ate).toISOString()})`}. Reative pela página /conectar ou enviando "retomar".`)
 }
 setInterval(() => store.limpar(cfg.retencaoDias), 6 * 3_600_000).unref()
+
+// Memória: vai para o log quando muda bastante ou fica alta, para achar a causa se a Render reiniciar o bot.
+const monitorMemoria = new MonitorMemoria()
+const registrarMemoria = () => {
+  const linha = monitorMemoria.verificar(lerMemoria())
+  if (linha) console.log(linha)
+}
+registrarMemoria()
+setInterval(registrarMemoria, 60_000).unref()
 
 // No QR, o driver é quem conecta ao WhatsApp, e também envia os avisos para a equipe (a partir do número da academia).
 const driver = modoQr ? new DriverBaileys({ dataDir: cfg.dataDir }) : undefined

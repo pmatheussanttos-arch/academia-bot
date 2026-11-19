@@ -1,4 +1,5 @@
 import { rotulo } from './agenda.js'
+import { formatoData } from './formato-data.js'
 import type { ServicoAgenda } from './agendamento.js'
 import type { EventoAgenda } from './google.js'
 import type { Notificador } from './notify.js'
@@ -80,7 +81,7 @@ export async function alterarAvaliacao(d: Deps, chat: string, p: PedidoAlteracao
   let inicioFinal = ev.inicio!
 
   if (data || hhmm) {
-    const dataAtual = new Intl.DateTimeFormat('en-CA', { timeZone: fuso }).format(new Date(ev.inicio!))
+    const dataAtual = formatoData('en-CA', { timeZone: fuso }).format(new Date(ev.inicio!))
     const alvoData = data || dataAtual
     const alvoHora = hhmm || rotulo(ev.inicio!, fuso).hora
     try {

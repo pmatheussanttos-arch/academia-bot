@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { formatoData } from './formato-data.js'
 
 export type DiaSemana = 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab'
 const DIAS: DiaSemana[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
@@ -98,7 +99,7 @@ export function carregarAgenda(caminho: string): Agenda {
     erro('"diasFechados" precisa ser uma lista de datas reais no formato AAAA-MM-DD')
   }
   try {
-    new Intl.DateTimeFormat('pt-BR', { timeZone: a.fusoHorario })
+    formatoData('pt-BR', { timeZone: a.fusoHorario })
   } catch {
     erro(`fuso horário desconhecido: ${a.fusoHorario}`)
   }
@@ -117,7 +118,7 @@ export function carregarAgenda(caminho: string): Agenda {
 
 /** A academia está funcionando neste instante? (dia fechado/feriado conta como fechada) */
 export function abertoEm(agenda: Agenda, instante: number): boolean {
-  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: agenda.fusoHorario, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(instante))
+  const partes = formatoData('en-CA', { timeZone: agenda.fusoHorario, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(instante))
   const get = (t: string) => partes.find((p) => p.type === t)?.value ?? ''
   const dataISO = `${get('year')}-${get('month')}-${get('day')}`
   if (agenda.diasFechados.includes(dataISO)) return false
@@ -128,7 +129,7 @@ export function abertoEm(agenda: Agenda, instante: number): boolean {
 
 /** Hora cheia (0-23) no fuso da academia. */
 export function horaLocalDe(agenda: Agenda, instante: number): number {
-  return Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: agenda.fusoHorario }).format(new Date(instante))) % 24
+  return Number(formatoData('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: agenda.fusoHorario }).format(new Date(instante))) % 24
 }
 
 /** Em que período do dia cai um horário (undefined se estiver fora de todas as faixas). */
@@ -172,7 +173,7 @@ export function horariosDoDia(agenda: Agenda, dataISO: string): string[] {
 }
 
 function offsetMs(fuso: string, instante: number): number {
-  const nome = new Intl.DateTimeFormat('en-US', { timeZone: fuso, timeZoneName: 'longOffset' })
+  const nome = formatoData('en-US', { timeZone: fuso, timeZoneName: 'longOffset' })
     .formatToParts(new Date(instante))
     .find((p) => p.type === 'timeZoneName')?.value
   const m = /GMT([+-])(\d{2}):?(\d{2})?/.exec(nome ?? '')
@@ -193,7 +194,7 @@ export function epochLocal(dataISO: string, hhmm: string, fuso: string): number 
 }
 
 export function hojeISO(agora: Date, fuso: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit' }).format(agora)
+  return formatoData('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit' }).format(agora)
 }
 
 export function capitalizar(s: string): string {
@@ -209,7 +210,7 @@ export interface Rotulo {
 }
 
 export function rotulo(epoch: number, fuso: string): Rotulo {
-  const partes = new Intl.DateTimeFormat('pt-BR', {
+  const partes = formatoData('pt-BR', {
     timeZone: fuso,
     weekday: 'long',
     day: '2-digit',

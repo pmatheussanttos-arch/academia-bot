@@ -1,4 +1,5 @@
 import { diaDaSemana, hojeISO, horaLocalDe, limitesDoDia, rotulo, somarDias } from './agenda.js'
+import { formatoData } from './formato-data.js'
 import type { ServicoAgenda } from './agendamento.js'
 import type { Config } from './config.js'
 import { normalizarNumero, numeroNaLista } from './config.js'
@@ -101,7 +102,7 @@ export class Rotinas {
   }
 
   private horaLocal(): number {
-    return Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: this.fuso }).format(new Date(this.agoraMs()))) % 24
+    return Number(formatoData('en-GB', { hour: '2-digit', hour12: false, timeZone: this.fuso }).format(new Date(this.agoraMs()))) % 24
   }
 
   /** Chame de tempos em tempos (a cada poucos minutos): cada rotina decide sozinha se já é a hora e se já fez. */

@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
+import { lerMemoria } from './memoria.js'
 import { Hono, type Context } from 'hono'
 import QRCode from 'qrcode'
 import type { EstadoWhatsapp } from './baileys.js'
@@ -119,6 +120,8 @@ export function criarApp(deps: AppDeps): Hono {
       agenda_professores: acesso.estado().ligada,
       /** Fase da campanha com data hoje (ativa, semana_final, ultimo_dia, encerrada) ou "nenhuma": mostra se o campanha.md chegou ao servidor. */
       campanha: campanhaDoDia(carregarCampanha(cfg.campanhaPath), (deps.agora ?? (() => new Date()))(), deps.agenda.fuso)?.fase ?? 'nenhuma',
+      /** Memória em MB (uso agora, objetos e o maior uso desde que ligou). A Render reinicia o bot acima do limite do plano. */
+      memoria: lerMemoria(),
     })
   })
 

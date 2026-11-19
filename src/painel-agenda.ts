@@ -1,4 +1,5 @@
 import { NOME_PERIODO, diaDaSemana, epochLocal, horariosDoDia, hojeISO, limitesDoDia, periodoDe, rotulo, somarDias, dataExiste, type Periodo } from './agenda.js'
+import { formatoData } from './formato-data.js'
 import type { ServicoAgenda } from './agendamento.js'
 import type { EventoAgenda, GoogleAgendaApi } from './google.js'
 import { limparNome } from './prompt.js'
@@ -358,7 +359,7 @@ export class PainelAgenda {
         const r = rotulo(ev.inicio!, this.regras.fusoHorario)
         this.store.registrarAcaoAgenda({ professor, acao: 'desmarcou', eventoId, cliente, whatsapp, detalhe: quando }, this.agoraMs())
         console.log(`[agenda-professores] ${professor} desmarcou a avaliação de ${cliente} (${quando})`)
-        const data = new Intl.DateTimeFormat('en-CA', { timeZone: this.regras.fusoHorario }).format(new Date(ev.inicio!))
+        const data = formatoData('en-CA', { timeZone: this.regras.fusoHorario }).format(new Date(ev.inicio!))
         return { mensagem: `Avaliação de ${cliente} desmarcada. O horário de ${r.dia} às ${r.hora} voltou a ficar livre.`, liberado: { data, hhmm: r.hora } }
       })
       .catch((e) => this.traduzir(e))
@@ -376,7 +377,7 @@ export class PainelAgenda {
         const antes = this.quando(ev.inicio!)
         const depois = this.quando(slot.inicio)
         const r = rotulo(ev.inicio!, this.regras.fusoHorario)
-        const dataAntes = new Intl.DateTimeFormat('en-CA', { timeZone: this.regras.fusoHorario }).format(new Date(ev.inicio!))
+        const dataAntes = formatoData('en-CA', { timeZone: this.regras.fusoHorario }).format(new Date(ev.inicio!))
         const agoraR = rotulo(this.agoraMs(), this.regras.fusoHorario)
         await api.moverEvento(agendaId, p.eventoId, {
           inicio: slot.inicio,
