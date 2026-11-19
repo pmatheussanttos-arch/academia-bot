@@ -79,7 +79,7 @@ Prontinho, {nome}! Seu cadastro já está registrado aqui ✅
 
 Para garantir, é só fazer o Pix:
 🔑 Chave (CNPJ): 35.950.235/0001-29
-🏢 GarageFit Academia
+🏢 Nome no Pix: MATHEUS S FERREIRA ACADEMIA LTDA
 
 Depois me manda o comprovante por aqui que a recepção confere e finaliza o seu cadastro. Qualquer dúvida, tô aqui!
 

@@ -92,6 +92,15 @@ describe('diária e entender o pedido real', () => {
     assert.match(i, /Não pergunte "o objetivo é seu ou dele\?" quando a situação já está clara/)
     assert.match(i, /Pro seu namorado, o ideal é a diária: R\$ 15 por dia/)
   })
+  it('diária: Pix antes de vir, com chave, nome do Pix e comprovante', () => {
+    assert.match(i, /de preferência \*\*pelo Pix, antes de vir\*\*/)
+    assert.match(i, /🏢 Nome no Pix: MATHEUS S FERREIRA ACADEMIA LTDA\n  💰 Valor: R\$ 15,00 por dia/)
+    assert.match(i, /A exceção é a \*\*diária\*\*/)
+    const m = readFileSync(new URL('../mensagens.md', import.meta.url), 'utf8')
+    assert.match(m, /## matricula-pix[\s\S]*🏢 Nome no Pix: MATHEUS S FERREIRA ACADEMIA LTDA/)
+    assert.doesNotMatch(m, /🏢 GarageFit Academia/)
+  })
+
   it('na Black, pergunta de diária não é empurrada para a promoção', () => {
     assert.match(c, /Se ela perguntar de \*\*diária\*\*.*Não empurre a Black nesse caso/s)
   })

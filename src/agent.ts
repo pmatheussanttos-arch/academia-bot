@@ -50,7 +50,7 @@ export function textoTransferencia(cfg: Config): string {
 }
 
 const MATRICULA_RESERVA: Record<'pix' | 'cartao', string> = {
-  pix: 'Prontinho, {nome}! Seu cadastro já está registrado ✅\n\n📋 Plano: {plano}\n\nChave Pix (CNPJ): 35.950.235/0001-29 — GarageFit Academia.\nDepois me envie o comprovante por aqui que a recepção confere e finaliza o seu cadastro.',
+  pix: 'Prontinho, {nome}! Seu cadastro já está registrado ✅\n\n📋 Plano: {plano}\n\nChave Pix (CNPJ): 35.950.235/0001-29 — nome no Pix: MATHEUS S FERREIRA ACADEMIA LTDA.\nDepois me envie o comprovante por aqui que a recepção confere e finaliza o seu cadastro.',
   cartao: 'Prontinho, {nome}! Seu cadastro já está registrado ✅\n\n📋 Plano: {plano}\n💳 Pagamento no cartão\n\n{pagamento_cartao}',
 }
 
