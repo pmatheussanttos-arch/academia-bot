@@ -95,7 +95,6 @@ describe('diária e entender o pedido real', () => {
   it('diária: Pix antes de vir, com chave, nome do Pix e comprovante', () => {
     assert.match(i, /de preferência \*\*pelo Pix, antes de vir\*\*/)
     assert.match(i, /🏢 Nome no Pix: MATHEUS S FERREIRA ACADEMIA LTDA\n  💰 Valor: R\$ 15,00 por dia/)
-    assert.match(i, /A exceção é a \*\*diária\*\*/)
     const m = readFileSync(new URL('../mensagens.md', import.meta.url), 'utf8')
     assert.match(m, /## matricula-pix[\s\S]*🏢 Nome no Pix: MATHEUS S FERREIRA ACADEMIA LTDA/)
     assert.doesNotMatch(m, /🏢 GarageFit Academia/)
@@ -103,5 +102,21 @@ describe('diária e entender o pedido real', () => {
 
   it('na Black, pergunta de diária não é empurrada para a promoção', () => {
     assert.match(c, /Se ela perguntar de \*\*diária\*\*.*Não empurre a Black nesse caso/s)
+  })
+})
+
+describe('pedido direto: resposta direta, sem empurrar a Black', () => {
+  const i = readFileSync(new URL('../instrucoes.md', import.meta.url), 'utf8')
+  const c = readFileSync(new URL('../campanha.md', import.meta.url), 'utf8')
+  it('chave Pix e pagamento: passa a chave na hora, com o nome do Pix, e pede o comprovante', () => {
+    assert.match(i, /### Pedido direto: responda direto \(vale mais do que o roteiro e do que a campanha\)/)
+    assert.match(i, /"Claro! Segue o Pix 😊\n  🔑 Chave \(CNPJ\): 35\.950\.235\/0001-29\n  🏢 Nome no Pix: MATHEUS S FERREIRA ACADEMIA LTDA\n  Depois é só me mandar o comprovante por aqui que a equipe confere\."/)
+    assert.match(i, /não ofereça a Black e não peça nome para "cadastro" antes de responder/)
+  })
+  it('aluno atual não vira lead nem recebe a Black sem pedir', () => {
+    assert.match(i, /\*\*Aluno atual:\*\* não é lead\. Não peça nome para cadastro, não faça a apresentação de planos e não ofereça a Black/)
+    assert.match(c, /=== A BLACK É UMA OFERTA, NÃO O ASSUNTO DE TODA CONVERSA ===/)
+    assert.match(c, /\*\*Pedido direto vem primeiro e não recebe a Black\.\*\*/)
+    assert.match(c, /\*\*Aluno atual pagando ou resolvendo algo:\*\* não ofereça a Black/)
   })
 })

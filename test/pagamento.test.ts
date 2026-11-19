@@ -154,7 +154,9 @@ describe('instruções sobre o pagamento no cartão', () => {
   it('link seguro ou recepção; nunca dados do cartão; comprovante e equipe depois de pagar', () => {
     assert.match(i, /pode ser pago pelo \*\*link seguro\*\* da InfinitePay/)
     assert.match(i, /\*\*nunca\*\* peça número, validade, código ou senha/)
-    assert.match(i, /Depois do Pix ou do pagamento pelo link, peça o comprovante e chame a equipe para conferir/)
+    assert.match(i, /Depois, peça o comprovante por aqui\./)
+    assert.match(i, /Quando o comprovante \(imagem ou arquivo\) chega, o sistema responde e avisa a equipe sozinho: não chame a equipe por isso/)
+    assert.doesNotMatch(i, /Use chamar_humano para a equipe conferir/)
     assert.match(i, /Trimestral em até 3x, Semestral em até 6x, Anual em até 12x/)
     assert.match(i, /\(3x por semana e Acesso livre\) são mensais, \*\*sem parcelamento\*\*/)
     assert.match(i, /Não invente o valor da parcela nem juros/)

@@ -16,7 +16,7 @@ describe('identidade e condução da conversa (GFIT)', () => {
   it('o bot se apresenta como GFIT com a frase exata da primeira mensagem', () => {
     assert.match(i, /Você é o \*\*GFIT\*\*, atendente virtual da \*\*GarageFit Academia\*\*/)
     assert.match(i, /"Olá! Eu sou o GFIT, atendente virtual aqui da GarageFit 😊 Vou te ajudar\. Primeiramente, qual o seu nome\?"/)
-    assert.match(i, /mesmo que a pessoa já chegue perguntando preço ou plano/)
+    assert.match(i, /quando a pessoa chega sem um pedido direto \(só "oi", "boa tarde", "quero informações", ou perguntando preço ou plano\)/)
   })
 
   it('mensagens curtas, uma pergunta só, nada de despejar planos', () => {
@@ -94,9 +94,9 @@ describe('como os preços são explicados', () => {
     assert.match(i, /Não invente boleto/)
   })
 
-  it('a chave Pix não é solta no meio da conversa: só na hora de fechar', () => {
-    assert.match(i, /Só passe a chave na hora de fechar a matrícula, usando a ferramenta `registrar_matricula`/)
-    assert.match(i, /não solte a chave no meio da conversa/)
+  it('a chave Pix vai na hora em que a pessoa pede ou quer pagar, com o nome do Pix', () => {
+    assert.match(i, /Passe a chave \*\*sempre que a pessoa pedir ou quiser pagar\*\*/)
+    assert.doesNotMatch(i, /não solte a chave no meio da conversa/)
   })
 
   it('GoNutri e "funcional" saíram das instruções; Desconto Fácil, avaliação e parcerias continuam', () => {
