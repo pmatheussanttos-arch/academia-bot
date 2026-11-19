@@ -95,7 +95,7 @@ describe('a campanha entra e sai sozinha pelas datas (fuso de Brasília)', () =>
     assert.match(t, /=== QUEM CHEGA SEM PEDIDO DIRETO/)
     assert.match(t, /Não presuma que ela quer a Black: PERGUNTE primeiro/)
     assert.match(t, /\nA\) Primeira resposta para quem NÃO veio pela Black[^\n]*\nOlá! Eu sou o GFIT, atendente virtual aqui da GarageFit 😊 Estamos com a Black Friday da GarageFit, valendo até 30\/11 🖤 Quer conhecer a promoção\?/)
-    assert.match(t, /Se a pessoa não quiser a promoção ou pedir os planos mensais: responda o que ela perguntou \(pode usar enviar_valores\)/)
+    assert.match(t, /Se a pessoa não quiser a promoção, não responder a pergunta da promoção \(por exemplo, só cumprimentar de novo\) ou pedir os planos mensais: responda o que ela perguntou \(pode usar enviar_valores\) e siga a \*\*descoberta\*\*/)
     assert.match(t, /=== CONTEXTO DA CONVERSA/)
     assert.match(t, /responda primeiro o que a pessoa acabou de perguntar/)
     assert.match(t, /Nunca repita uma pergunta que já foi respondida \(nome, objetivo\) nem comece com "Oi" no meio da conversa/)

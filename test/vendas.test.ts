@@ -27,15 +27,15 @@ describe('identidade e condução da conversa (GFIT)', () => {
 
   it('nunca inventa o nome: pergunta e depois usa', () => {
     assert.match(i, /nunca presuma nem invente o nome da pessoa, e nunca use o nome do perfil do WhatsApp/i)
-    assert.match(i, /"Prazer, \[nome\]! O que você busca hoje\? Quer saber dos planos ou é outra coisa\?"/)
+    assert.match(i, /"Prazer, \[nome\]! Me conta: qual é o seu principal objetivo hoje\? \(condicionamento, definição, saúde\.\.\.\)"/)
     assert.match(REGRAS_FIXAS, /Nunca invente, deduza ou chute o nome do cliente/)
     const nome = (FERRAMENTAS.find((f) => f.name === 'solicitar_avaliacao')!.input_schema as { properties: Record<string, { description: string }> }).properties.nome!.description
     assert.match(nome, /Nunca invente nem use o nome do perfil/)
   })
 
   it('preço vem da ferramenta enviar_valores, sem perguntar a frequência antes', () => {
-    assert.match(i, /use a ferramenta `enviar_valores` e envie \*\*exatamente\*\* o que ela devolver/)
-    assert.match(i, /\*\*Não pergunte antes\*\* se a pessoa quer 3x por semana ou todos os dias/)
+    assert.match(i, /Para isso, use a ferramenta `enviar_valores` e envie \*\*exatamente\*\* o que ela devolver/)
+    assert.match(i, /responda na hora \(não segure o preço para terminar a descoberta\)/)
     assert.match(i, /nunca monte a lista de valores por conta própria/)
     assert.doesNotMatch(i, /Você gostaria de treinar 3x por semana ou todos os dias/)
     assert.doesNotMatch(i, /Nunca dar preço antes de saber a frequência/)
@@ -50,8 +50,14 @@ describe('identidade e condução da conversa (GFIT)', () => {
     assert.match(i, /Se ela perguntar por um plano mais barato, nunca esconda/)
   })
 
-  it('conduz para aula experimental ou avaliação', () => {
-    assert.match(i, /conduza para o próximo passo: aula experimental gratuita \(é só vir, sem agendar\) ou avaliação física/)
+  it('descoberta: objetivo, experiência, horário, frequência, avaliação e, se recusar, aula experimental', () => {
+    assert.match(i, /### Descoberta: entenda a pessoa antes de oferecer/)
+    for (const passo of ['1. **Objetivo:**', 'Você já treinou antes?', 'Você pretende vir em qual horário, já definiu?', '3x na semana ou todos os dias?', 'Então já vamos deixar a sua avaliação agendada?', '7. **Se ela recusar a avaliação**']) {
+      assert.ok(i.includes(passo), passo)
+    }
+    assert.match(i, /ofereça a aula experimental gratuita, sem insistir na avaliação/)
+    assert.match(i, /\*\*treino não tem horário marcado\*\*/)
+    assert.ok(i.indexOf('Você já treinou antes?') < i.indexOf('Então já vamos deixar a sua avaliação agendada?'))
   })
 })
 

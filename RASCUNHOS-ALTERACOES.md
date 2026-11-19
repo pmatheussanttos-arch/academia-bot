@@ -148,4 +148,10 @@ E-mail da Render: "exceeded its memory limit" depois de lançar as ações pende
 
 ---
 
+## 8. Descoberta no jeito do Matheus (19/11/2026) — APLICADA
+
+Modelo do Matheus (conversa de 17/11): entender a pessoa com perguntas-chave e chamar para a avaliação. Ordem: nome → objetivo → "o treino é montado pra isso" + "já treinou antes?" → horário que pretende vir → 3x ou todos os dias → "Então já vamos deixar a sua avaliação agendada?" → se recusar, aula experimental gratuita → se recusar, porta aberta. Preço continua sendo respondido na hora em que pedem. Muda a decisão de 24/10 ("não perguntar 3x ou todos os dias"): agora a pergunta faz parte da descoberta, mas nunca atrasa o preço. Na Black: quem diz "sim" à promoção segue o roteiro da campanha; quem não responde ou não quer segue a descoberta.
+
+---
+
 (próximas alterações entram aqui embaixo)
