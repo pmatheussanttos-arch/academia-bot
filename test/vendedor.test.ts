@@ -79,3 +79,20 @@ describe('treinar não precisa agendar; só a avaliação física tem horário',
     assert.match(i, /Se já tem treino próprio:\*\* pode vir treinar direto/)
   })
 })
+
+describe('diária e entender o pedido real', () => {
+  const i = readFileSync(new URL('../instrucoes.md', import.meta.url), 'utf8')
+  const c = readFileSync(new URL('../campanha.md', import.meta.url), 'utf8')
+  it('a diária existe e custa R$ 15,00', () => {
+    assert.match(i, /\*\*Diária:\*\* \*\*R\$ 15,00\*\* por dia de treino/)
+    assert.match(i, /Não existe plano "só de sábado": para isso, a diária/)
+  })
+  it('responde a necessidade explicada, inclusive de outra pessoa, sem seguir o roteiro às cegas', () => {
+    assert.match(i, /### Entenda o pedido real antes de seguir o roteiro/)
+    assert.match(i, /Não pergunte "o objetivo é seu ou dele\?" quando a situação já está clara/)
+    assert.match(i, /Pro seu namorado, o ideal é a diária: R\$ 15 por dia/)
+  })
+  it('na Black, pergunta de diária não é empurrada para a promoção', () => {
+    assert.match(c, /Se ela perguntar de \*\*diária\*\*.*Não empurre a Black nesse caso/s)
+  })
+})
